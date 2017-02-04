@@ -1,3 +1,4 @@
+from exceptions import *
 from globvars import *
 
 
@@ -19,7 +20,7 @@ class Piece:
     def __init__(self, start_square, type, colour):
         self.colour = colour
         self.type = type
-        self.pos = (start_square.file, start_square.rank)
+        self.pos = start_square.pos
         self.currentSquare = start_square
 
 
@@ -31,3 +32,20 @@ class Board:
         for y in range(BOARD_HEIGHT):
             for x in range(BOARD_WIDTH):
                 self.squares.append(Square(ALPHABET[x], y + 1))
+        self.load_pieces(STARTING_BOARD)
+
+    def load_pieces(self, pieces):
+        # Pieces format is "pa2 pb2" etc. [piece, file, rank]", separated by spaces. White is UPPER, Black is lower
+        pieces = pieces.split(" ")
+        for piece in pieces:
+            target = self.get_square(piece[1], int(piece[2]))
+            if piece[0].isupper():
+                target.piece = Piece(target, PIECE_ALIASES[piece[0]], WHITE)
+            else:
+                target.piece = Piece(target, PIECE_ALIASES[piece[0].upper()], BLACK)
+
+    def get_square(self, file, rank):
+        for square in self.squares:
+            if square.pos == (file, rank):
+                return square
+        raise InvalidSquareError

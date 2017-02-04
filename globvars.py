@@ -14,5 +14,10 @@ KING = 2006
 PIECE_NAMES = {PAWN: "Pawn", KNIGHT: "Knight", BISHOP: "Bishop", ROOK: "Rook", QUEEN: "Queen", KING: "King"}
 PIECE_NAMES_SHORT = {PAWN: "P", KNIGHT: "N", BISHOP: "B", ROOK: "R", QUEEN: "Q", KING: "K"}
 
+# Board info
+BOARD_WIDTH = 8
+BOARD_HEIGHT = 8
+
 # Other useful things
 ALPHABET = list("abcdefghijklmnopqrstuvwxyz")
+

@@ -40,9 +40,9 @@ class Board:
         for piece in pieces:
             target = self.get_square(piece[1], int(piece[2]))
             if piece[0].isupper():
-                target.piece = Piece(target, PIECE_ALIASES[piece[0]], WHITE)
+                target.piece = Piece(target, PIECE_NAMES_SHORT[piece[0]], WHITE)
             else:
-                target.piece = Piece(target, PIECE_ALIASES[piece[0].upper()], BLACK)
+                target.piece = Piece(target, PIECE_NAMES_SHORT[piece[0].upper()], BLACK)
 
     def get_square(self, file, rank):
         for square in self.squares:

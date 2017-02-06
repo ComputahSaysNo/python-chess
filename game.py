@@ -23,10 +23,12 @@ if __name__ == '__main__':
             self.type = type
             self.pos = start_square.pos
             self.currentSquare = start_square
+            self.valid_moves = MOVEMENT_RULES[self.type]
 
         def check_valid_move(self, end_pos, board):
             # First update movement rules
-            self.valid_moves = MOVEMENT_RULES[self.type]
+            if self.type == PAWN:
+                if self.colour == WHITE and self.pos[1] == "2"
 
 
 class Board:

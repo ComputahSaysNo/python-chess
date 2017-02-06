@@ -5,14 +5,14 @@ def print_board_text(board):
     for y in range(board.dimensions[1]):
         row = " "
         for x in range(board.dimensions[0]):
-            target = board.get_square(ALPHABET[x], y + 1)
+            target = board.get_square(ALPHABET[x] + str(y + 1))
             row += " " + TEXT_GUI_PADDING.split()[0]
             if target.piece is None:
                 row += " "
             elif target.piece.colour == WHITE:
-                row += PIECE_NAMES_SHORT[target.piece.type].upper()
+                row += target.piece.type.upper()
             else:
-                row += PIECE_NAMES_SHORT[target.piece.type].lower()
+                row += target.piece.type.lower()
             row += TEXT_GUI_PADDING.split()[1]
         output.append(row)
     for row in reversed(output):

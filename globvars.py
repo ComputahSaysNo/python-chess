@@ -4,16 +4,18 @@ BLACK = 1002
 COLOUR_NAMES = {WHITE: "White", BLACK: "Black"}
 
 # Piece info
-EMPTY = 2000
-PAWN = 2001
-KNIGHT = 2002
-BISHOP = 2003
-ROOK = 2004
-QUEEN = 2005
-KING = 2006
+PAWN = "P"
+KNIGHT = "N"
+BISHOP = "B"
+ROOK = "R"
+QUEEN = "Q"
+KING = "K"
+PIECE_NAMES_LONG = {PAWN: "Pawn", KNIGHT: "Knight", BISHOP: "Bishop", ROOK: "Rook", QUEEN: "Queen", KING: "King"}
+MOVEMENT_RULES = {
+    PAWN: [(+1, +0)],
+    KNIGHT: [(+1, +2), (-1, +2), (-2, +1), (-2, -1), (-1, -2), (+1, -2), (+2, -1), (+2, +1)],
 
-PIECE_NAMES = {PAWN: "Pawn", KNIGHT: "Knight", BISHOP: "Bishop", ROOK: "Rook", QUEEN: "Queen", KING: "King"}
-PIECE_NAMES_SHORT = {PAWN: "P", KNIGHT: "N", BISHOP: "B", ROOK: "R", QUEEN: "Q", KING: "K"}
+}
 
 # Board info
 BOARD_WIDTH = 8

@@ -5,7 +5,7 @@ def main():
     board = Board()
     print_board_text(board)
     print("")
-    board.move_piece(("e",1),("e",2))
+    board.move_piece("e1","e2")
     print_board_text(board)
 
 if __name__ == '__main__':

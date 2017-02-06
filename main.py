@@ -1,13 +1,12 @@
 from game import *
+from display import *
 
 def main():
     board = Board()
-    for i in board.squares:
-        print(i.pos)
-        if i.piece is not None:
-            print(PIECE_NAMES[i.piece.type],COLOUR_NAMES[i.piece.colour])
-        else:
-            print("Empty")
+    print_board_text(board)
+    print("")
+    board.move_piece(("e",1),("e",2))
+    print_board_text(board)
 
 if __name__ == '__main__':
     main()

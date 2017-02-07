@@ -14,21 +14,32 @@ class Square:
             self.colour = WHITE
 
 
-if __name__ == '__main__':
-    class Piece:
-        """A class representing a single piece on the board. Goes within a Square's piece attribute"""
+class Piece:
+    """A class representing a single piece on the board. Goes within a Square's piece attribute"""
 
-        def __init__(self, start_square, type, colour):
-            self.colour = colour
-            self.type = type
-            self.pos = start_square.pos
-            self.currentSquare = start_square
-            self.valid_moves = MOVEMENT_RULES[self.type]
+    def __init__(self, start_square, type, colour):
+        self.colour = colour
+        self.type = type
+        self.pos = start_square.pos
+        self.file = self.pos[0]
+        self.rank = int(self.pos[1])
+        self.currentSquare = start_square
+        self.valid_moves = ()
 
-        def check_valid_move(self, end_pos, board):
-            # First update movement rules
-            if self.type == PAWN:
-                if self.colour == WHITE and self.pos[1] == "2"
+    def gen_valid_moves(self, board):
+        # First update movement rules
+        if self.type == PAWN:
+            if self.colour == WHITE:
+                if self.rank == 2:
+                    valid_moves = ((+2, +0), (+1, +0))
+                else:
+                    valid_moves = ((+1, +0))
+            elif self.colour == BLACK:
+                if self.rank == 7:
+                    valid_moves = ((-2, +0), (-1, +0))
+                else:
+                    valid_moves = ((-1, 0))
+        return ()
 
 
 class Board:

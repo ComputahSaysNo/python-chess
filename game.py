@@ -2,6 +2,18 @@ from constants import *
 from exceptions import *
 
 
+def algebraic_to_xy(algebraic):
+    """Converts algebraic notation to raw x and y positions (0-7 each)"""
+    if len(algebraic) != 2:
+        raise ValueError
+    return ALPHABET.index(algebraic[0]), int(algebraic[1]) - 1
+
+
+def xy_to_algebraic(x, y):
+    """Takes in raw x and y positions and returns the equivalent in algebraic notation """
+    return ALPHABET[x] + str(y + 1)
+
+
 class Piece:
     """This class holds a single piece on the board, keeps track of its basic info like position, type, colour"""
 
@@ -17,7 +29,7 @@ class Board:
     """Class holding all the board pieces in a list. Piece movement is handled at this level"""
 
     def __init__(self, width=BOARD_WIDTH, height=BOARD_HEIGHT):
-        self.dimensions = (width, height)
+        self.dimensions = (width - 1, height - 1)  # -1 to adjust to the fact that the raw piece coords start from 0
         self.pieces = []
         self.capturedPieces = []
         self.load_pieces(STARTING_BOARD)
@@ -33,7 +45,7 @@ class Board:
             if len(piece) != 3:
                 raise InvalidPieceList
             colour = WHITE
-            if colour[0].isupper():
+            if piece[0].islower():
                 colour = BLACK
             self.pieces.append(Piece(piece[0].upper(), ALPHABET.index(piece[1]), int(piece[2]) - 1, colour))
 
@@ -47,15 +59,52 @@ class Board:
                 return piece
         raise PieceNotFound
 
+    def is_empty(self, pos):
+        """Takes in a board square and returns True if the square isn't occupied"""
+        try:
+            self.get_piece(pos)
+            return False
+        except PieceNotFound:
+            return True
+
     def check_valid_move(self, start_pos, end_pos):
         """Takes in a start pos and end pos in algebraic notation and returns if that is a valid move or not"""
+        if start_pos == end_pos:
+            return False  # If the start pos is the same as the end the move isn't valid
         try:
             start_piece = self.get_piece(start_pos)  # If there isn't a piece at the start position the move isn't valid
         except PieceNotFound:
-            return False
+            return False   # If there is no piece at the start pos, the move isn't valid
         try:
             end_piece = self.get_piece(end_pos)
             if end_piece.colour == start_piece.colour:
-                return False
+                return False  # If the end piece is the same colour as the start piece, the move is invalid
         except PieceNotFound:
             pass
+        end_pos = algebraic_to_xy(end_pos)
+        if end_pos[0] > self.dimensions[0] or end_pos[1] > self.dimensions[1]:
+            return False  # If the destination square is outside the board, the move is invalid
+        start_pos = (start_piece.file, start_piece.rank)
+        difference = (end_pos[0] - start_pos[0], end_pos[1] - start_pos[1])
+        valid_moves = []
+
+        if start_piece.type == PAWN:
+            if start_piece.colour == WHITE:
+                if self.is_empty(xy_to_algebraic(start_piece.file, start_piece.rank + 1)):
+                    valid_moves = [(0, 1)]
+                    if self.is_empty(
+                            xy_to_algebraic(start_piece.file, start_piece.rank + 2)) and start_piece.rank == 1:
+                        valid_moves.append((0, 2))
+            elif start_piece.colour == BLACK:
+                if self.is_empty(xy_to_algebraic(start_piece.file, start_piece.rank - 1)):
+                    valid_moves = [(0, -1)]
+                    if self.is_empty(
+                            xy_to_algebraic(start_piece.file, start_piece.rank - 2)) and start_piece.rank == 6:
+                        valid_moves.append((0, -2))
+
+        elif start_piece.type == KNIGHT:
+            valid_moves = [(2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2)]
+
+        elif start_piece.type == KING:
+            valid_moves = [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1)]
+        return difference in valid_moves

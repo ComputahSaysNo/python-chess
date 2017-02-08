@@ -1,6 +1,6 @@
 # Colour IDs (for board squares and pieces)
-WHITE = "Black"
-BLACK = "White"
+WHITE = "White"
+BLACK = "Black"
 
 # Piece info
 PAWN = "P"

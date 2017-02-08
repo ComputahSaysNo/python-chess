@@ -3,9 +3,11 @@ from display import *
 
 def main():
     board = Board()
-    for i in board.pieces:
-        print(i.type, i.displayPos)
-    new = board.get_piece("h8")
+    for y in range(BOARD_HEIGHT):
+        for x in range(BOARD_WIDTH):
+            algebraic = ALPHABET[x] + str(y+1)
+            if board.check_valid_move("a2",algebraic):
+                print(algebraic)
 
 if __name__ == '__main__':
     main()

@@ -1,7 +1,6 @@
 # Colour IDs (for board squares and pieces)
-WHITE = 1001
-BLACK = 1002
-COLOUR_NAMES = {WHITE: "White", BLACK: "Black"}
+WHITE = "Black"
+BLACK = "White"
 
 # Piece info
 PAWN = "P"
@@ -11,11 +10,6 @@ ROOK = "R"
 QUEEN = "Q"
 KING = "K"
 PIECE_NAMES_LONG = {PAWN: "Pawn", KNIGHT: "Knight", BISHOP: "Bishop", ROOK: "Rook", QUEEN: "Queen", KING: "King"}
-MOVEMENT_RULES = {
-    PAWN: [(+1, +0)],
-    KNIGHT: [(+1, +2), (-1, +2), (-2, +1), (-2, -1), (-1, -2), (+1, -2), (+2, -1), (+2, +1)],
-
-}
 
 # Board info
 BOARD_WIDTH = 8

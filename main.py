@@ -2,11 +2,7 @@ from game import *
 from display import *
 
 def main():
-    board = Board()
-    print_board_text(board)
-    print("")
-    board.move_piece("e1","e2")
-    print_board_text(board)
+    pass
 
 if __name__ == '__main__':
     main()

@@ -4,3 +4,5 @@ class PieceNotFound(Exception):
 class InvalidMoveError(Exception):
     pass
 
+class InvalidPieceList(Exception):
+    pass

@@ -1,1 +1,1 @@
-from globvars import *
+from constants import *

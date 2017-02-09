@@ -34,7 +34,7 @@ class Board:
     """Class holding all the board pieces in a list. Piece movement is handled at this level"""
 
     def __init__(self, width=BOARD_WIDTH, height=BOARD_HEIGHT):
-        self.dimensions = (width - 1, height - 1)  # -1 to adjust to the fact that the raw piece coords start from 0
+        self.dimensions = (width, height)
         self.pieces = []
         self.capturedPieces = []
         self.load_pieces(STARTING_BOARD)
@@ -87,7 +87,7 @@ class Board:
         except PieceNotFound:
             pass
         end_xy = algebraic_to_xy(end_pos)
-        if end_xy[0] > self.dimensions[0] or end_xy[1] > self.dimensions[1]:
+        if 0 > end_xy[0] > self.dimensions[0] - 1 or 0 > end_xy[1] > self.dimensions[1] - 1:
             return False  # If the destination square is outside the board, the move is invalid
         start_xy = (start_piece.file, start_piece.rank)
         difference = (end_xy[0] - start_xy[0], end_xy[1] - start_xy[1])
@@ -110,12 +110,13 @@ class Board:
                     if pawn_capture.colour != start_piece.colour:
                         valid_moves.append((1, 1))
                 except PieceNotFound:
-                    try:
-                        pawn_capture = self.get_piece(xy_to_algebraic(start_piece.file - 1, start_piece.rank + 1))
-                        if pawn_capture.colour != start_piece.colour:
-                            valid_moves.append((-1, 1))
-                    except PieceNotFound:
-                        pass
+                    pass
+                try:
+                    pawn_capture = self.get_piece(xy_to_algebraic(start_piece.file - 1, start_piece.rank + 1))
+                    if pawn_capture.colour != start_piece.colour:
+                        valid_moves.append((-1, 1))
+                except PieceNotFound:
+                    pass
             elif start_piece.colour == BLACK:
                 if self.is_empty(xy_to_algebraic(start_piece.file, start_piece.rank - 1)):
                     valid_moves = [(0, -1)]
@@ -127,12 +128,13 @@ class Board:
                     if pawn_capture.colour != start_piece.colour:
                         valid_moves.append((-1, -1))
                 except PieceNotFound:
-                    try:
-                        pawn_capture = self.get_piece(xy_to_algebraic(start_piece.file + 1, start_piece.rank - 1))
-                        if pawn_capture.colour != start_piece.colour:
-                            valid_moves.append((1, -1))
-                    except PieceNotFound:
-                        pass
+                    pass
+                try:
+                    pawn_capture = self.get_piece(xy_to_algebraic(start_piece.file + 1, start_piece.rank - 1))
+                    if pawn_capture.colour != start_piece.colour:
+                        valid_moves.append((1, -1))
+                except PieceNotFound:
+                    pass
 
         elif start_type == KNIGHT:
             valid_moves = [(2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2)]
@@ -142,9 +144,9 @@ class Board:
 
         if start_type in (PAWN, KNIGHT, KING):
             return difference in valid_moves
-
         # Pieces that we need to check for stuff in the way.
-        elif start_type == BISHOP:
+
+        if start_type == BISHOP:
             if abs(difference[0]) != abs(difference[1]):
                 return False
             if difference[0] > 0 and difference[1] > 0:
@@ -155,12 +157,6 @@ class Board:
                 direction = (-1, 1)
             else:
                 direction = (-1, -1)
-            check_pos = (start_piece.file, start_piece.rank)
-            visited = []
-            for i in range(abs(difference[0]) - 1):
-                check_pos = (check_pos[0] + direction[0], check_pos[1] + direction[1])
-                visited.append(self.is_empty(xy_to_algebraic(check_pos[0], check_pos[1])))
-            return False not in visited
 
         elif start_type == ROOK:
             if 0 not in difference:
@@ -173,8 +169,10 @@ class Board:
                 direction = (0, 1)
             else:
                 direction = (0, -1)
-            check_pos = (start_piece.file, start_piece.rank)
-            visited = []
+        check_pos = (start_piece.file, start_piece.rank)
+        visited = []
+
+        if start_type in (BISHOP, ROOK):
             for i in range(abs(sorted(difference)[1]) - 1):
                 check_pos = (check_pos[0] + direction[0], check_pos[1] + direction[1])
                 visited.append(self.is_empty(xy_to_algebraic(check_pos[0], check_pos[1])))
@@ -197,5 +195,14 @@ class Board:
         start_piece.update_display_pos()
         if start_piece.type == PAWN:
             if (start_piece.colour == WHITE and start_piece.rank == 7) or (
-                    start_piece.colour == BLACK and start_piece.rank == 0):
+                            start_piece.colour == BLACK and start_piece.rank == 0):
                 start_piece.type = QUEEN
+
+    def get_all_valid_moves(self, start_pos):
+        output = []
+        for y in range(self.dimensions[1]):
+            for x in range(self.dimensions[0]):
+                end_pos = ALPHABET[x] + str(y + 1)
+                if self.check_valid_move(start_pos, end_pos):
+                    output.append(end_pos)
+        return output

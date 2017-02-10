@@ -1,9 +1,9 @@
 from display import *
-from game import *
+from board import *
 
 
 def main():
-    board = Board()
+    board = Board(BOARD_WIDTH, BOARD_HEIGHT, STARTING_BOARD)
     print_board_text(board)
     current_player = WHITE
     while True:

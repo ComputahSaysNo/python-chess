@@ -32,6 +32,9 @@ def main():
                 current_player = WHITE
         except InvalidMoveError:
             print("Invalid move, try again")
+        if board.check_checkmate(current_player):
+            print(current_player + " has  been checkmated!")
+            break
         if board.check_check(current_player):
             print(current_player + " is in check")
 

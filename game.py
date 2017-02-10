@@ -34,13 +34,12 @@ class Piece:
 class Board:
     """Class holding all the board pieces in a list. Piece movement is handled at this level"""
 
-    def __init__(self, width=BOARD_WIDTH, height=BOARD_HEIGHT):
+    def __init__(self, width=BOARD_WIDTH, height=BOARD_HEIGHT, pieces=STARTING_BOARD):
         self.dimensions = (width, height)
         self.pieces = []
         self.capturedPieces = []
-        self.load_pieces(STARTING_BOARD)
-        self.whiteInCheck = False
-        self.blackInCheck = False
+        self.load_pieces(pieces)
+        self.inCheck = {WHITE: False, BLACK: False}
 
     def load_pieces(self, pieces):
         """
@@ -56,6 +55,17 @@ class Board:
             if piece[0].islower():
                 colour = BLACK
             self.pieces.append(Piece(piece[0].upper(), ALPHABET.index(piece[1]), int(piece[2]) - 1, colour))
+
+    def export_pieces(self):
+        """Returns the pieces in the same format as used by load_pieces above."""
+        output = ""
+        for piece in self.pieces:
+            if piece.colour == WHITE:
+                output += piece.type.upper()
+            else:
+                output += piece.type.lower()
+            output += piece.displayPos + " "
+        return output
 
     def get_piece(self, target_pos):
         """
@@ -75,8 +85,9 @@ class Board:
         except PieceNotFound:
             return True
 
-    def check_valid_move(self, start_pos, end_pos, colour, force_piece=False):
+    def check_valid_move(self, start_pos, end_pos, colour, force_piece=False, check_check=True):
         """Takes in a start pos and end pos in algebraic notation and returns if that is a valid move or not"""
+        output = False
         if start_pos == end_pos:
             return False  # If the start pos is the same as the end the move isn't valid
         try:
@@ -104,6 +115,7 @@ class Board:
 
         if start_type in (PAWN, KNIGHT, KING):
             valid_moves = []
+
             if start_type == PAWN:
                 if start_piece.colour == WHITE:
                     direction_multiplier = 1
@@ -136,7 +148,7 @@ class Board:
             elif start_type == KING:
                 valid_moves = [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1)]
 
-            return difference in valid_moves
+            output = difference in valid_moves
 
         # Pieces that we need to check for stuff in the way.
         if start_type in (BISHOP, ROOK):
@@ -169,14 +181,28 @@ class Board:
             for i in range(abs(sorted(difference)[1]) - 1):
                 check_pos = (check_pos[0] + direction[0], check_pos[1] + direction[1])
                 visited.append(self.is_empty(xy_to_algebraic(check_pos[0], check_pos[1])))
-            return False not in visited
+            output = False not in visited
 
         elif start_type == QUEEN:  # If it's a queen we just call the function again as a bishop or a rook.
-            return self.check_valid_move(start_pos, end_pos, colour, BISHOP) or self.check_valid_move(start_pos, end_pos, colour, ROOK)
+            output = self.check_valid_move(start_pos, end_pos, colour, BISHOP) or self.check_valid_move(start_pos,
+                                                                                                        end_pos, colour,
+                                                                                                        ROOK)
+        if output:
+            if check_check:
+                # Make a copy of the current board, make the proposed move, if the move places the player in check it
+                # is not valid.
+                testBoard = Board(self.dimensions[0], self.dimensions[1], self.export_pieces())
+                testBoard.make_move(start_pos, end_pos, colour, False)
+                if testBoard.inCheck[colour]:
+                    return False
+            return True
+        else:
+            return False
 
-    def make_move(self, start_pos, end_pos, colour):
-        if not self.check_valid_move(start_pos, end_pos, colour):
-            raise InvalidMoveError
+    def make_move(self, start_pos, end_pos, colour, check_valid=True):
+        if check_valid:
+            if not self.check_valid_move(start_pos, end_pos, colour):
+                raise InvalidMoveError
         try:
             destination_piece = self.get_piece(end_pos)
             destination_piece.isCaptured = True
@@ -190,37 +216,46 @@ class Board:
             if (start_piece.colour == WHITE and start_piece.rank == 7) or (
                             start_piece.colour == BLACK and start_piece.rank == 0):
                 start_piece.type = QUEEN
-        self.blackInCheck = self.check_check(BLACK)
-        self.whiteInCheck = self.check_check(WHITE)
+        self.inCheck[WHITE] = self.check_check(WHITE)
+        self.inCheck[BLACK] = self.check_check(BLACK)
 
     def get_all_valid_moves(self, start_pos):
         output = []
         for y in range(self.dimensions[1]):
             for x in range(self.dimensions[0]):
                 end_pos = ALPHABET[x] + str(y + 1)
-                if self.check_valid_move(start_pos, end_pos, start_pos.colour):
+                if self.check_valid_move(start_pos, end_pos, self.get_piece(start_pos).colour):
                     output.append(end_pos)
         return output
 
     def check_check(self, colour):
         target = None
-        for attacker in self.pieces:
-            if attacker.type == KING and attacker.colour == colour:
-                target = attacker
+        for piece in self.pieces:
+            if piece.type == KING and piece.colour == colour:
+                target = piece
         if target is None:
             return False
         for attacker in self.pieces:
             if attacker.colour != colour:
                 if attacker.type != PAWN:
-                    if self.check_valid_move(attacker.displayPos, target.displayPos, attacker.colour):
+                    if self.check_valid_move(attacker.displayPos, target.displayPos, attacker.colour, False, False):
                         return True
                 else:
                     if attacker.colour == WHITE:
                         if target.file - attacker.file in (-1, 1) and target.rank - attacker.rank == 1:
-                            print(attacker.type)
                             return True
                     elif attacker.colour == BLACK:
                         if target.file - attacker.file in (-1, 1) and target.rank - attacker.rank == -1:
-                            print(attacker.type,"BLACK")
                             return True
         return False
+
+    def check_checkmate(self, colour):
+        """Returns if [colour] has been checkmated"""
+        valid_moves = []
+        for piece in self.pieces:
+            if piece.colour == colour:
+                piece_moves = self.get_all_valid_moves(piece.displayPos)
+                for i in piece_moves:
+                    valid_moves.append(i)
+        if len(valid_moves) == 0 and self.inCheck[colour]:
+            return True

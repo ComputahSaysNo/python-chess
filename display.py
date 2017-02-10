@@ -1,6 +1,6 @@
 from constants import *
 from exceptions import *
-from game import xy_to_algebraic
+from board import xy_to_algebraic
 
 
 def print_board_text(board):

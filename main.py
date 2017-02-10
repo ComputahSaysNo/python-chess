@@ -1,9 +1,9 @@
 from display import *
-from game import *
+from board import *
 
 
 def main():
-    board = Board()
+    board = Board(BOARD_WIDTH, BOARD_HEIGHT, STARTING_BOARD)
     print_board_text(board)
     current_player = WHITE
     while True:
@@ -32,6 +32,9 @@ def main():
                 current_player = WHITE
         except InvalidMoveError:
             print("Invalid move, try again")
+        if board.check_checkmate(current_player):
+            print(current_player + " has  been checkmated!")
+            break
         if board.check_check(current_player):
             print(current_player + " is in check")
 

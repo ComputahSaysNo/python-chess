@@ -3,8 +3,8 @@ from display import *
 
 
 def run_game_text():
-    player1 = str(input("Player 1 name: "))
-    player2 = str(input("Player 2 name: "))
+    player1 = "White"  # str(input("Player 1 name: "))
+    player2 = "Black"  # str(input("Player 2 name: "))
     player_to_colour = {player1: WHITE, player2: BLACK}
     running = True
     game_board = Board(BOARD_WIDTH, BOARD_HEIGHT, STARTING_BOARD)
@@ -24,6 +24,20 @@ def run_game_text():
         elif move == "pass":
             print("Passing to " + waiting_player)
             toggle_players = True
+        elif move == "castle kingside":
+            try:
+                game_board.castle(player_to_colour[current_player], KINGSIDE)
+            except InvalidMoveError:
+                print("Invalid castle")
+            else:
+                toggle_players = True
+        elif move == "castle queenside":
+            try:
+                game_board.castle(player_to_colour[current_player], QUEENSIDE)
+            except InvalidMoveError:
+                print("Invalid castle")
+            else:
+                toggle_players = True
         else:
             move = move.split()
             if len(move) == 2:
@@ -51,5 +65,5 @@ def run_game_text():
             waiting_player = bucket
             if game_board.check_checkmate(player_to_colour[current_player]):
                 print(waiting_player + " wins!")
-                break
+                running = False
         print("")

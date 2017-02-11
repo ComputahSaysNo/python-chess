@@ -1,8 +1,8 @@
 # python-chess
-A first attempt at a chess simulation in Python
+My implementation of chess in Python (WIP)
 
-todo:
+Todo:
 
 GUI
 
-En Passant
+En passant

@@ -25,7 +25,7 @@ class Piece:
         self.type = piece_type
         self.colour = colour
         self.isCaptured = False
-        self.underAttack = False
+        self.timesMoved = 0
 
     def update_display_pos(self):
         self.displayPos = ALPHABET[self.file] + str(self.rank + 1)
@@ -40,6 +40,7 @@ class Board:
         self.capturedPieces = []
         self.load_pieces(pieces)
         self.inCheck = {WHITE: False, BLACK: False}
+        self.moves = ""
 
     def load_pieces(self, pieces):
         """
@@ -218,13 +219,18 @@ class Board:
                 start_piece.type = QUEEN
         self.inCheck[WHITE] = self.check_check(WHITE)
         self.inCheck[BLACK] = self.check_check(BLACK)
+        self.moves += start_piece.type + end_pos + " "
 
-    def get_all_valid_moves(self, start_pos):
+    def get_all_piece_moves(self, start_pos):
         output = []
+        try:
+            start_colour = self.get_piece(start_pos).colour
+        except PieceNotFound:
+            return []
         for y in range(self.dimensions[1]):
             for x in range(self.dimensions[0]):
                 end_pos = ALPHABET[x] + str(y + 1)
-                if self.check_valid_move(start_pos, end_pos, self.get_piece(start_pos).colour):
+                if self.check_valid_move(start_pos, end_pos, start_colour):
                     output.append(end_pos)
         return output
 
@@ -237,16 +243,8 @@ class Board:
             return False
         for attacker in self.pieces:
             if attacker.colour != colour:
-                if attacker.type != PAWN:
-                    if self.check_valid_move(attacker.displayPos, target.displayPos, attacker.colour, False, False):
-                        return True
-                else:
-                    if attacker.colour == WHITE:
-                        if target.file - attacker.file in (-1, 1) and target.rank - attacker.rank == 1:
-                            return True
-                    elif attacker.colour == BLACK:
-                        if target.file - attacker.file in (-1, 1) and target.rank - attacker.rank == -1:
-                            return True
+                if self.check_valid_move(attacker.displayPos, target.displayPos, attacker.colour, False, False):
+                    return True
         return False
 
     def check_checkmate(self, colour):
@@ -254,7 +252,7 @@ class Board:
         valid_moves = []
         for piece in self.pieces:
             if piece.colour == colour:
-                piece_moves = self.get_all_valid_moves(piece.displayPos)
+                piece_moves = self.get_all_piece_moves(piece.displayPos)
                 for i in piece_moves:
                     valid_moves.append(i)
         if len(valid_moves) == 0 and self.inCheck[colour]:

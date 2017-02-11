@@ -10,12 +10,13 @@ def run_game_text():
     game_board = Board(BOARD_WIDTH, BOARD_HEIGHT, STARTING_BOARD)
     current_player = player1
     waiting_player = player2
-    print("On each turn, type the start and end position of a move (e.g. e2 e4) to make that move, type pass to pass"
-          " the turn or type resign to withdraw from the game")
+    print("On each turn, type the start and end position of a move (e.g. e2 e4) to make that move, type a position to"
+          " get all valid moves from that position, type pass to pass the turn to the other player, or type resign"
+          " to withdraw from the game")
+    print_board_text(game_board)
     while running:
         print("It's " + current_player + "'s turn")
         toggle_players = False  # If this is set to true during the move, swap the players at the end of the loop
-        print_board_text(game_board)
         move = str(input("Enter the move: ")).lower()
         if move == "resign":
             print(current_player + " resigns, " + waiting_player + " wins!")
@@ -32,7 +33,19 @@ def run_game_text():
                     print("Invalid move, try again")
                 else:
                     toggle_players = True
+            elif len(move) == 1:
+                try:
+                    moves = game_board.get_all_piece_moves(move[0])
+                except PieceNotFound:
+                    print("There isn't a piece at that position")
+                else:
+                    if len(moves) == 0:
+                        print("There aren't any legal moves from that position")
+                    else:
+                        for move in moves:
+                            print(move)
         if toggle_players:
+            print_board_text(game_board)
             bucket = current_player
             current_player = waiting_player
             waiting_player = bucket

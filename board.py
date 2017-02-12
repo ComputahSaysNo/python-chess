@@ -4,7 +4,7 @@ from exceptions import *
 
 def algebraic_to_xy(algebraic):
     """Converts algebraic notation to raw x and y positions (0-7 each)"""
-    if len(algebraic) != 2:
+    if len(algebraic) != 2 or not algebraic[0].isalpha() or not algebraic[1].isdigit():
         raise ValueError
     return ALPHABET.index(algebraic[0]), int(algebraic[1]) - 1
 
@@ -178,8 +178,8 @@ class Board:
                     direction = (0, -1)
             check_pos = (start_piece.file, start_piece.rank)
             visited = []
-
-            for i in range(abs(sorted(difference)[1]) - 1):
+            difference = sorted((abs(difference[0]), abs(difference[1])))
+            for i in range(difference[1]-1):
                 check_pos = (check_pos[0] + direction[0], check_pos[1] + direction[1])
                 visited.append(self.is_empty(xy_to_algebraic(check_pos[0], check_pos[1])))
             output = False not in visited
@@ -208,6 +208,7 @@ class Board:
             destination_piece = self.get_piece(end_pos)
             destination_piece.isCaptured = True
             self.capturedPieces.append(destination_piece)
+            self.pieces.remove(destination_piece)
         except PieceNotFound:
             pass
         start_piece = self.get_piece(start_pos)
@@ -265,18 +266,15 @@ class Board:
             raise InvalidMoveError
         else:
             if direction == KINGSIDE:
-                self.make_move(target_king.displayPos, xy_to_algebraic(6,home_rank),colour, False)
+                self.make_move(target_king.displayPos, xy_to_algebraic(6, home_rank), colour, False)
                 self.make_move(target_rook.displayPos, xy_to_algebraic(5, home_rank), colour, False)
             elif direction == QUEENSIDE:
-                self.make_move(target_king.displayPos, xy_to_algebraic(2,home_rank),colour, False)
+                self.make_move(target_king.displayPos, xy_to_algebraic(2, home_rank), colour, False)
                 self.make_move(target_rook.displayPos, xy_to_algebraic(3, home_rank), colour, False)
 
     def get_all_piece_moves(self, start_pos):
         output = []
-        try:
-            start_colour = self.get_piece(start_pos).colour
-        except PieceNotFound:
-            return []
+        start_colour = self.get_piece(start_pos).colour
         for y in range(self.dimensions[1]):
             for x in range(self.dimensions[0]):
                 end_pos = ALPHABET[x] + str(y + 1)
@@ -307,3 +305,4 @@ class Board:
                     valid_moves.append(i)
         if len(valid_moves) == 0 and self.inCheck[colour]:
             return True
+

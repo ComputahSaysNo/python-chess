@@ -11,7 +11,8 @@ def run_game_text():
     current_player = player1
     waiting_player = player2
     print("On each turn, type the start and end position of a move (e.g. e2 e4) to make that move, type a position to"
-          " get all valid moves from that position, type pass to pass the turn to the other player, or type resign"
+          " get all valid moves from that position, type castle kingside or castle queenside to castle, \n"
+          "type pass to pass the turn to the other player, or type resign"
           " to withdraw from the game")
     print_board_text(game_board)
     while running:
@@ -40,6 +41,18 @@ def run_game_text():
                 toggle_players = True
         else:
             move = move.split()
+            for part in move:
+                try:
+                    pos = algebraic_to_xy(part)
+                    for dim in pos:
+                        if dim > game_board.dimensions[0] - 1:
+                            print("Position outside of board, try again")
+                            move = []
+                            continue
+                except ValueError:
+                    print("Invalid input, try again")
+                    move = []
+                    continue
             if len(move) == 2:
                 try:
                     game_board.make_move(move[0], move[1], player_to_colour[current_player])
@@ -51,11 +64,14 @@ def run_game_text():
                 try:
                     moves = game_board.get_all_piece_moves(move[0])
                 except PieceNotFound:
-                    print("There isn't a piece at that position")
+                    print("There isn't a piece at " + move[0])
                 else:
                     if len(moves) == 0:
-                        print("There aren't any legal moves from that position")
+                        print("The " + PIECE_NAMES_LONG[game_board.get_piece(move[0]).type] + " at " +
+                              move[0] + " has no legal moves")
                     else:
+                        print("The " + PIECE_NAMES_LONG[game_board.get_piece(move[0]).type] + " at " +
+                              move[0] + " can make these moves: ")
                         for move in moves:
                             print(move)
         if toggle_players:
@@ -66,4 +82,6 @@ def run_game_text():
             if game_board.check_checkmate(player_to_colour[current_player]):
                 print(waiting_player + " wins!")
                 running = False
+            elif game_board.check_check(player_to_colour[current_player]):
+                print(current_player + " is in check")
         print("")

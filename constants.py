@@ -9,7 +9,7 @@ BISHOP = "B"
 ROOK = "R"
 QUEEN = "Q"
 KING = "K"
-PIECE_NAMES_LONG = {PAWN: "Pawn", KNIGHT: "Knight", BISHOP: "Bishop", ROOK: "Rook", QUEEN: "Queen", KING: "King"}
+PIECE_NAMES_LONG = {PAWN: "pawn", KNIGHT: "knight", BISHOP: "bishop", ROOK: "rook", QUEEN: "queen", KING: "king"}
 
 # Board info
 BOARD_WIDTH = 8
@@ -19,9 +19,6 @@ STARTING_BOARD = "Ra1 Nb1 Bc1 Qd1 Ke1 Bf1 Ng1 Rh1 Pa2 Pb2 Pc2 Pd2 Pe2 Pf2 Pg2 Ph
 
 # Display
 TEXT_GUI_PADDING = "[ ]"
-
-
-
 DISPLAY_PIECES = {
     WHITE: {KING: "K", QUEEN: "Q", ROOK: "R", BISHOP: "B", KNIGHT: "N", PAWN: "P"},
     BLACK: {KING: "k", QUEEN: "q", ROOK: "r", BISHOP: "b", KNIGHT: "n", PAWN: "p"}
@@ -30,5 +27,6 @@ DISPLAY_PIECES = {
 # Other useful things
 ALPHABET = list("abcdefghijklmnopqrstuvwxyz")
 
-KINGSIDE = 0
-QUEENSIDE = 1
+#Castling
+KINGSIDE = 1
+QUEENSIDE = -1

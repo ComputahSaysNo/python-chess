@@ -2,8 +2,7 @@
 My implementation of chess in Python (WIP)
 
 Todo:
-Castling
-
-En passant
 
 GUI
+
+En passant

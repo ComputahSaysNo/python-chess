@@ -12,10 +12,7 @@ def print_board_text(board):
             row += TEXT_GUI_PADDING.split()[0]
             try:
                 target = board.get_piece(xy_to_algebraic(x, y))
-                if target.colour == WHITE:
-                    row += target.type.upper()
-                else:
-                    row += target.type.lower()
+                row += DISPLAY_PIECES[target.colour][target.type]
             except PieceNotFound:
                 row += " "
             row += TEXT_GUI_PADDING.split()[1]

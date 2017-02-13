@@ -190,7 +190,7 @@ class Board:
                                                                                                         ROOK)
         if output:
             if check_check:
-                # Make a copy of the current board, make the proposed move, if the move places the player in check it
+                # Make a copy of the current board, make the c oposed move, if the move places the player in check it
                 # is not valid.
                 test_board = Board(self.dimensions[0], self.dimensions[1], self.export_pieces())
                 test_board.make_move(start_pos, end_pos, colour, False)
@@ -303,6 +303,16 @@ class Board:
                 piece_moves = self.get_all_piece_moves(piece.displayPos)
                 for i in piece_moves:
                     valid_moves.append(i)
-        if len(valid_moves) == 0 and self.inCheck[colour]:
+        if len(valid_moves) == 0 and self.check_check(colour):
             return True
 
+    def check_stalemate(self, colour):
+        """Returns if [colour] has been stalemated"""
+        valid_moves = []
+        for piece in self.pieces:
+            if piece.colour == colour:
+                piece_moves = self.get_all_piece_moves(piece.displayPos)
+                for i in piece_moves:
+                    valid_moves.append(i)
+        if len(valid_moves) == 0 and not self.check_check(colour):
+            return True

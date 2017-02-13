@@ -79,6 +79,9 @@ def run_game_text():
             bucket = current_player
             current_player = waiting_player
             waiting_player = bucket
+            if game_board.check_stalemate(player_to_colour[current_player]):
+                print("Stalemate, game is a draw")
+                running = False
             if game_board.check_checkmate(player_to_colour[current_player]):
                 print(waiting_player + " wins!")
                 running = False

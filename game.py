@@ -10,10 +10,10 @@ def run_game_text():
     game_board = Board(BOARD_WIDTH, BOARD_HEIGHT, STARTING_BOARD)
     current_player = player1
     waiting_player = player2
-    print("On each turn, type the start and end position of a move (e.g. e2 e4) to make that move, type a position to"
-          " get all valid moves from that position, type castle kingside or castle queenside to castle, \n"
-          "type pass to pass the turn to the other player, or type resign"
-          " to withdraw from the game")
+    help_msg = """On each turn, type a start position and end position to make a move, type a position to get all legal
+    moves from there, type castle kingside or 0-0 to castle kingside, type castle queenside or 0-0-0 to castle
+    queenside or type resign to withdraw from the game"""
+    print(help_msg)
     print_board_text(game_board)
     while running:
         print("It's " + current_player + "'s turn")
@@ -22,17 +22,14 @@ def run_game_text():
         if move == "resign":
             print(current_player + " resigns, " + waiting_player + " wins!")
             running = False
-        elif move == "pass":
-            print("Passing to " + waiting_player)
-            toggle_players = True
-        elif move == "castle kingside":
+        elif move == "castle kingside" or move == "0-0":
             try:
                 game_board.castle(player_to_colour[current_player], KINGSIDE)
             except InvalidMoveError:
                 print("Invalid castle")
             else:
                 toggle_players = True
-        elif move == "castle queenside":
+        elif move == "castle queenside" or move == "0-0-0":
             try:
                 game_board.castle(player_to_colour[current_player], QUEENSIDE)
             except InvalidMoveError:

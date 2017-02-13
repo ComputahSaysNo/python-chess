@@ -14,7 +14,7 @@ def print_board_text(board):
                 target = board.get_piece(xy_to_algebraic(x, y))
                 row += DISPLAY_PIECES[target.colour][target.type]
             except PieceNotFound:
-                row += " "
+                row += "."
             row += TEXT_GUI_PADDING.split()[1]
         row += " " + str(y+1)
         output.append(row)

@@ -2,56 +2,101 @@ from constants import *
 from exceptions import *
 
 
-def algebraic_pos_to_file_rank(pos):
-    """Takes in an algebraic pos like e5 and returns the rank and file"""
-    if len(pos) != 2:
-        raise ValueError
+def algebraic_to_xy(pos):
     return ALPHABET.index(pos[0]) + 1, int(pos[1])
 
 
-def file_rank_to_algebraic_pos(file, rank):
-    return ALPHABET[file - 1] + str(rank)
+def xy_to_algebraic(x, y):
+    return ALPHABET[x - 1] + str(y)
 
 
-def reverse_dict(d):
-    return dict((v, k) for k, v in d.items())
+def rev_dict(dictionary):
+    return dict((v, k) for k, v in dictionary.items())
 
 
 class Piece:
-    """Piece class stores its own position, type and colour."""
+    """A class holding a single piece on the board. Tracks its own type, colour and position"""
 
-    def __init__(self, piece_type, start_pos, colour):
-        self.pos = start_pos
+    def __init__(self, piece_type, pos, colour):
         self.type = piece_type
+        self.pos = pos
         self.colour = colour
-        self.timesMoved = 0
+        self.x, self.y = algebraic_to_xy(self.pos)  # Remember to update these each time pos is changed.
 
 
 class Board:
-    """Holds multiple piece classes in a list and handles piece movement."""
+    """A class representing the chess board."""
 
-    def __init__(self, width, height):
-        self.dimensions = (width, height)
+    def __init__(self):
         self.activePieces = []
         self.capturedPieces = []
-        self.inCheck = {WHITE: False, BLACK: False}
+        self.activeColour = WHITE  # i.e. this colour is about to move
+        self.inCheck = None
+        self.canCastle = {WHITE: {KINGSIDE: False, QUEENSIDE: False}, BLACK: {KINGSIDE: False, QUEENSIDE: False}}
+        self.enPassantTarget = ""
+        self.halfMoveClock = 0  # Tracks the number of half-moves since the last pawn movement or piece capture
+        self.moveClock = 0
+        self.result = "IN PROGRESS"
 
-    def load_start_board(self, start_board):
-        """Input to this method should be a string containing a list of pieces in algebraic notation (e.g. Nf1 Qe2).
-        Use UPPERCASE for white and lowercase for black. Pawns need to use P as their symbol to distinguish black
-        and white"""
-        for piece in start_board.split():
-            if len(piece) != 3:
-                raise ValueError
-            if piece[0].isupper():
-                colour = WHITE
-            else:
+    def load_fen(self, fen):
+        """Loads a chess board in Forsyth-Edwards notation."""
+        fen = fen.split(" ")  # Splits the FEN into its 6 fields.
+        ranks = fen[0].split("/")
+        rank_pointer = 8
+        for rank in ranks:
+            file_pointer = 1
+            for char in rank:
+                if char.isdigit():
+                    file_pointer += int(char)
+                else:
+                    colour = WHITE
+                    if char.islower():
+                        colour = BLACK
+                    self.activePieces.append(
+                        Piece(FEN_PIECE_ALIASES[char.upper()], xy_to_algebraic(file_pointer, rank_pointer), colour))
+                    file_pointer += 1
+            rank_pointer -= 1
+        self.activeColour = FEN_COLOUR_ALIASES[fen[1].upper()]
+        self.canCastle = {WHITE: {KINGSIDE: False, QUEENSIDE: False}, BLACK: {KINGSIDE: False, QUEENSIDE: False}}
+        for char in fen[2]:
+            colour = WHITE
+            if char.islower():
                 colour = BLACK
-            piece_type = PIECE_LOADING_ALIASES[piece[0].upper()]
-            self.activePieces.append(Piece(piece_type, piece[1:], colour))
+            self.canCastle[colour][FEN_CASTLING_ALIASES[char.upper()]] = True
+        self.enPassantTarget = fen[3]
+        self.halfMoveClock = fen[4]
+        self.moveClock = fen[5]
+
+    def export_fen(self):
+        output = ""
+        for rank_pointer in range(BOARD_HEIGHT, 0, -1):
+            rank = ""
+            gap_counter = 0
+            for file_pointer in range(1, BOARD_WIDTH + 1):
+                pos = xy_to_algebraic(file_pointer, rank_pointer)
+                try:
+                    new = self.get_piece(pos)
+                except PieceNotFound:
+                    gap_counter += 1
+                else:
+                    if gap_counter != 0:
+                        rank += str(gap_counter)
+                        gap_counter = 0
+                    if new.colour == WHITE:
+                        rank += rev_dict(FEN_PIECE_ALIASES)[new.type].upper()
+                    else:
+                        rank += rev_dict(FEN_PIECE_ALIASES)[new.type].lower()
+            if gap_counter != 0:
+                rank += str(gap_counter)
+            output += rank + "/"
+        output = output[:-1]  # To remove trailing backslash at the end
+        output += " " + rev_dict(FEN_COLOUR_ALIASES)[
+            self.activeColour].lower() + " " + "KQkq" + " " + self.enPassantTarget + " " + str(
+            self.halfMoveClock) + " " + str(
+            self.moveClock)
+        return output
 
     def get_piece(self, pos):
-        """Return a piece from its algebraic position (e.g. a1, e5)"""
         for piece in self.activePieces:
             if piece.pos == pos:
                 return piece
@@ -65,52 +110,54 @@ class Board:
         else:
             return False
 
-    def is_valid_pos(self, pos):
-        if len(pos) == 2:
-            if pos[0].isalpha() and pos[1].isdigit():
-                xy = algebraic_pos_to_file_rank(pos)
-                return xy[0] <= self.dimensions[0] and xy[1] < self.dimensions[1]
-        return False
-
-    def check_valid_move(self, start_pos, end_pos, check_check=False, force_piece=False):
-        """Takes in a start and end position and returns whether that is a valid move"""
+    def check_valid_move(self, start_pos, end_pos, force_piece=None, check_check=True):
+        """Takes in a start and end position and returns if it is a valid move or not (Long Algebraic Notation)"""
         if start_pos == end_pos:
-            return False, "Start position is the same as end position"
+            return False  # Invalid move because nothing has been moved
+
         try:
-            piece = self.get_piece(start_pos)
+            piece_to_move = self.get_piece(start_pos)
         except PieceNotFound:
-            return False, "No piece at start position"
-        if not self.is_valid_pos(end_pos):
-            return False, "Invalid end position (outside of board)"
-        colour = piece.colour
+            return False  # Invalid move if there isn't a piece at the start position
+        else:
+            piece_type = piece_to_move.type
+            colour = piece_to_move.colour
+
         try:
             end_piece = self.get_piece(end_pos)
         except PieceNotFound:
             pass
         else:
-            end_colour = end_piece.colour
-            if colour == end_colour:
-                return False, "Cannot capture piece of own colour"
-        piece_type = piece.type
-        start_xy = algebraic_pos_to_file_rank(start_pos)
-        end_xy = algebraic_pos_to_file_rank(end_pos)
-        difference = (end_xy[0] - start_xy[0], end_xy[1] - start_xy[1])
-        if piece_type == PAWN:
+            if end_piece.colour == colour:
+                return False  # You can't capture your own pieces
+
+        start_x, start_y = algebraic_to_xy(start_pos)
+        end_x, end_y = algebraic_to_xy(end_pos)
+        difference = (end_x - start_x, end_y - start_y)
+
+        if end_x > BOARD_WIDTH or end_y > BOARD_HEIGHT:
+            return False  # End position outside of board
+
+        if force_piece is not None:
+            piece_type = force_piece
+
+        if piece_type in (PAWN, KNIGHT, KING):
+
             valid_moves = []
-            if colour == WHITE:
-                direction = 1
-                start_rank = 2
-            else:
-                direction = -1
-                start_rank = 7
-            if self.is_empty(piece.pos[0] + str(int(piece.pos[1]) + direction)):
-                valid_moves.append((0, direction * 1))
-                if self.is_empty(piece.pos[0] + str(int(piece.pos[1]) + direction * 2)) and int(
-                        piece.pos[1]) == start_rank:
-                    valid_moves.append((0, direction * 2))
-            for i in (1, -1):
-                capture_pos = ALPHABET[ALPHABET.index(piece.pos[0]) + i] + str(int(piece.pos[1]) + direction)
-                if self.is_valid_pos(capture_pos):
+
+            if piece_type == PAWN:
+                if colour == WHITE:
+                    direction = 1
+                    home_rank = 2
+                else:
+                    direction = -1
+                    home_rank = 7
+                if self.is_empty(xy_to_algebraic(start_x, start_y + direction)):
+                    valid_moves.append((0, direction))
+                    if self.is_empty(xy_to_algebraic(start_x, start_y + direction * 2)) and start_y == home_rank:
+                        valid_moves.append((0, direction * 2))
+                for i in (1, -1):
+                    capture_pos = xy_to_algebraic(start_x + i, start_y + direction)
                     try:
                         target = self.get_piece(capture_pos)
                     except PieceNotFound:
@@ -118,55 +165,96 @@ class Board:
                     else:
                         if target.colour != colour:
                             valid_moves.append((i, direction))
+
+            elif piece_type == KNIGHT:
+                valid_moves = [(2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2)]
+
+            elif piece_type == KING:
+                valid_moves = [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1)]
+
             if difference not in valid_moves:
-                return False, "Invalid move for type PAWN"
-        elif piece_type == KNIGHT:
-            valid_moves = [(2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2)]
-            if difference not in valid_moves:
-                return False, "Invalid move for type KNIGHT"
-        elif piece_type == KING:
-            valid_moves = [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1)]
-            if difference not in valid_moves:
-                return False, "Invalid move for type KING"
-        elif piece_type in (BISHOP, ROOK):
-            direction = (0, 0)
+                return False
+
+        elif piece_type in (BISHOP, ROOK, QUEEN):
+
+            direction = [0, 0]
+
             if piece_type == BISHOP:
                 if abs(difference[0]) != abs(difference[1]):
                     return False
-                if difference[0] > 0 and difference[1] > 0:
-                    direction = (1, 1)
-                elif difference[0] > 0 > difference[1]:
-                    direction = (1, -1)
-                elif difference[0] < 0 < difference[1]:
-                    direction = (-1, 1)
-                else:
-                    direction = (-1, -1)
+
             elif piece_type == ROOK:
                 if 0 not in difference:
                     return False
-                if difference[0] > 0:
-                    direction = (1, 0)
-                elif difference[0] < 0:
-                    direction = (-1, 0)
-                elif difference[1] > 0:
-                    direction = (0, 1)
-                elif difference[1] < 0:
-                    direction = (0, -1)
-            pos_to_check = algebraic_pos_to_file_rank(start_pos)
-            visited = []
+
+            elif piece_type == QUEEN:
+                piece_types = (BISHOP, ROOK)  # If it is a queen we just run the function again as a bishop and rook
+                results = []
+                for i in piece_types:
+                    results.append(self.check_valid_move(start_pos, end_pos, force_piece=i))
+                if True not in results:
+                    return False
+
+            for i in range(len(difference)):
+                if difference[i] > 0:
+                    direction[i] = 1
+                elif difference[i] < 0:
+                    direction[i] = -1
+                else:
+                    direction[i] = 0
+            pos_to_check = (start_x, start_y)
             length_to_check = sorted((abs(difference[0]), abs(difference[1])))[1] - 1
+            visited = []
             for i in range(length_to_check):
                 pos_to_check = (pos_to_check[0] + direction[0], pos_to_check[1] + direction[1])
                 visited.append(pos_to_check)
             for square in visited:
-                if not self.is_empty(square):
-                    return False, "Piece in the way of BISHOP/ROOK/QUEEN movement"
-        elif piece_type == QUEEN:
-            if not (self.check_valid_move(start_pos, end_pos, colour, force_piece=BISHOP) or self.check_valid_move(
-                    start_pos, end_pos, colour, force_piece=ROOK)):
-                return False, "Invalid move for type QUEEN"
+                if not self.is_empty(xy_to_algebraic(square[0], square[1])):
+                    return False
+
         if check_check:
-            pass
+            test_board = Board()
+            test_board.load_fen(self.export_fen())
+            test_board.make_move(start_pos, end_pos, check_valid=False)
+            if test_board.check_check() == colour:
+                return False
 
         return True
 
+    def make_move(self, start_pos, end_pos, check_valid=True, pawn_promotion=QUEEN):
+        try:
+            target = self.get_piece(start_pos)
+        except PieceNotFound:
+            raise InvalidMoveError
+        if check_valid:
+            if not self.check_valid_move(start_pos, end_pos):
+                raise InvalidMoveError
+        try:
+            end_piece = self.get_piece(end_pos)
+        except PieceNotFound:
+            if target.type != PAWN:
+                self.halfMoveClock += 1
+            else:
+                self.halfMoveClock = 0
+        else:
+            self.capturedPieces.append(end_piece)
+            self.activePieces.remove(end_piece)
+            self.halfMoveClock = 0
+        target.pos = end_pos
+        target.x, target.y = algebraic_to_xy(end_pos)
+        if target.type == PAWN:
+            if (target.y == 8 and target.colour == WHITE) or (target.y == 1 and target.colour == BLACK):
+                target.type = pawn_promotion
+        self.inCheck = self.check_check()
+
+    def check_check(self):
+        for colour in (WHITE, BLACK):
+            target_king = None
+            for piece in self.activePieces:
+                if piece.type == KING and piece.colour == colour:
+                    target_king = piece
+            for attacker in self.activePieces:
+                if attacker.colour != colour:
+                    if self.check_valid_move(attacker.pos, target_king.pos, check_check=False):
+                        return colour
+        return None

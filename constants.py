@@ -11,7 +11,15 @@ KNIGHT = "knight"
 PAWN = "pawn"
 SAN_PIECE_ALIASES = {KING: "K", QUEEN: "Q", ROOK: "R", BISHOP: "B", KNIGHT: "N", PAWN: " "}
 
-BOARD_DIMENSIONS = (8, 8)
-STARTING_BOARD = "Ra1 Nb1 Bc1 Qd1 Ke1 Bf1 Ng1 Rh1 Pa2 Pb2 Pc2 Pd2 Pe2 Pf2 Pg2 Ph2 nb3 " \
-                 "pa7 pb7 pc7 pd7 pe7 pf7 pg7 ph7 ra8 nb8 bc8 qd8 ke8 bf8 ng8 rh8"
-PIECE_LOADING_ALIASES = {"K": KING, "Q": QUEEN, "R": ROOK, "B": BISHOP, "N": KNIGHT, "P": PAWN}
+BOARD_WIDTH = BOARD_HEIGHT = 8
+
+START_BOARD = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+KINGSIDE = "K"
+QUEENSIDE = "Q"
+
+# FEN Parsing:
+FEN_PIECE_ALIASES = {"K": KING, "Q": QUEEN, "R": ROOK, "B": BISHOP, "N": KNIGHT, "P": PAWN}
+FEN_COLOUR_ALIASES = {"W": WHITE, "B": BLACK}
+FEN_CASTLING_ALIASES = {"K": KINGSIDE, "Q": QUEENSIDE}
+FEN_EMPTY_EPTARGET = "-"

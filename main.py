@@ -1,10 +1,13 @@
 from board import *
 
 def main():
-    board = Board(BOARD_DIMENSIONS[0],BOARD_DIMENSIONS[1])
-    board.load_start_board(STARTING_BOARD)
-    target = board.get_piece("a2")
-    board.check_valid_move("a2","a3")
-
+    board = Board()
+    board.load_fen(START_BOARD)
+    for i in board.activePieces:
+        print(i.pos, i.type, i.colour)
+    print(board.activeColour)
+    print(board.canCastle)
+    print(board.check_check())
+    print(board.export_fen())
 if __name__ == '__main__':
     main()

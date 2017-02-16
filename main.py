@@ -4,6 +4,11 @@ from lib.display import *
 from lib.game import *
 from lib.exceptions import *
 
+def test():
+    board = Board()
+    gui = ChessGUI()
+
+
 def main():
     board = Board()
     board.load_fen(START_BOARD)
@@ -77,4 +82,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    test()

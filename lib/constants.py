@@ -41,4 +41,19 @@ BLACK_WIN = "0-1"
 DRAW = "1/2-1/2"
 IN_PROGRESS = "*"
 
+GUI_DIMENSIONS = (1600, 1000)
 GUI_CAPTION = "Chess"
+GUI_FONT_NAME = "lib/font/Aquatico-Regular.otf"
+GUI_BOARD_START_POS = (100, 100)
+GUI_SQUARE_SIZE = 100  # pixels
+GUI_FPS = 30
+
+GUI_BG_COLOUR = (49, 46, 43)
+GUI_LIGHT_COLOUR = (254, 206, 157)
+GUI_DARK_COLOUR = (209, 139, 69)
+GUI_TEXT_COLOUR = (255, 255, 255)
+
+
+
+FILENAME_COLOUR = {WHITE: "white", BLACK: "black"}
+FILENAME_PIECETYPES = {KING: "king", QUEEN: "queen", ROOK: "rook", BISHOP: "bishop", KNIGHT: "knight", PAWN: "pawn"}

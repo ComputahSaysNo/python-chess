@@ -1,9 +1,12 @@
-from board import *
-from display import *
+from lib.board import *
+from lib.constants import *
+from lib.display import *
+from lib.game import *
+from lib.exceptions import *
 
 def main():
     board = Board()
-    board.load_fen("1n2kb1r/p4ppp/4q3/4p1B1/4P3/8/PPP2PPP/2KR4 w kq - 0 17")
+    board.load_fen(START_BOARD)
     current_player = WHITE
     waiting_player = BLACK
     print_board(board.export_fen())
@@ -71,5 +74,7 @@ def main():
     print(board.moves)
     print(board.export_fen())
     print(board.result)
+
+
 if __name__ == '__main__':
     main()

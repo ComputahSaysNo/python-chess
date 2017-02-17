@@ -47,6 +47,7 @@ class Board:
         self.moves = ""
         self.previousStates = []
 
+
     def load_fen(self, fen):
         """Loads a chess board in Forsyth-Edwards notation."""
         fen = fen.split(" ")  # Splits the FEN into its 6 fields.

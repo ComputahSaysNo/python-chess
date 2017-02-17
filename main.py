@@ -1,8 +1,10 @@
-from lib.board import *
-from lib.constants import *
+import time
+
 from lib.display import *
-from lib.game import *
 from lib.exceptions import *
+
+start_time = time.time()
+
 
 def test():
     board = Board()
@@ -74,8 +76,8 @@ def main():
             print_board(board.export_fen())
             if board.check_game_outcome() != IN_PROGRESS:
                 break
-        print(board.moves)
-        print(board.export_fen())
+            print(board.moves)
+        print("--- %s seconds ---" % (time.time() - start_time))
     print(board.moves)
     print(board.export_fen())
     print(board.result)

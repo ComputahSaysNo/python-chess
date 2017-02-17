@@ -40,8 +40,12 @@ class GUIPiece(pygame.sprite.Sprite):
         self.rect.center = (GUI_BOARD_START_POS[0] + (file - 0.5) * GUI_SQUARE_SIZE,
                             GUI_BOARD_START_POS[1] + (BOARD_HEIGHT - rank + 0.5) * GUI_SQUARE_SIZE)
 
-
-
+    def move(self, end_pos):
+        self.pos = end_pos
+        self.file, self.rank = algebraic_to_xy(end_pos)
+        end_x, end_y = (GUI_BOARD_START_POS[0] + (self.file - 0.5) * GUI_SQUARE_SIZE,
+                        GUI_BOARD_START_POS[1] + (BOARD_HEIGHT - self.rank + 0.5) * GUI_SQUARE_SIZE)
+        self.rect.center = [end_x, end_y]
 
 class ChessGUI:
     def __init__(self):
@@ -54,13 +58,14 @@ class ChessGUI:
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(GUI_FONT_NAME, GUI_SQUARE_SIZE // 5)
         self.start_x, self.start_y = GUI_BOARD_START_POS
-        self.pieceSprites = pygame.sprite.Group()
+        self.pieceSprites = pygame.sprite.RenderUpdates()
         self.draw_board()
         self.load_pieces(START_BOARD)
         pygame.display.update()
-        self.mainloop()
+        self.get_user_input()
 
     def draw_board(self):
+        pygame.Surface.fill(self.screen, GUI_BG_COLOUR)
         for y in range(BOARD_HEIGHT):
             y_pos = self.start_y + GUI_SQUARE_SIZE * y
             for x in range(BOARD_WIDTH):
@@ -118,8 +123,26 @@ class ChessGUI:
 
     def move_piece(self, start_pos, end_pos):
         piece = self.get_piece(start_pos)
+        if piece is None:
+            return
+        piece.pos = end_pos
+        piece.file, piece.rank = algebraic_to_xy(end_pos)
+        end_x, end_y = (GUI_BOARD_START_POS[0] + (piece.file - 0.5) * GUI_SQUARE_SIZE,
+                        GUI_BOARD_START_POS[1] + (BOARD_HEIGHT - piece.rank + 0.5) * GUI_SQUARE_SIZE)
+        piece.rect.center = [end_x, end_y]
+        self.draw_board()
+        self.pieceSprites.draw(self.screen)
 
-    def mainloop(self):
+    def highlight_square(self, pos):
+        file, rank = algebraic_to_xy(pos)
+        x_pos = self.start_x + (file - 1) * GUI_SQUARE_SIZE
+        y_pos = self.start_y + (BOARD_HEIGHT - rank) * GUI_SQUARE_SIZE
+        topLeft = [x_pos, y_pos]
+        pygame.draw.rect(self.screen, GUI_HIGHLIGHT_COLOUR, [topLeft[0], topLeft[1], GUI_SQUARE_SIZE, GUI_SQUARE_SIZE],
+                         GUI_SQUARE_SIZE // 10)
+
+    def get_user_input(self):
+        clicked = []
         while True:
             self.clock.tick(GUI_FPS)
             for e in pygame.event.get():
@@ -131,4 +154,13 @@ class ChessGUI:
                     pygame.quit()
                     return
                 if e.type is pygame.MOUSEBUTTONDOWN:
-                    print(self.get_click_pos(e))
+                    new_click = self.get_click_pos(e)
+                    if new_click not in clicked:
+                        clicked.append(new_click)
+                    self.highlight_square(new_click)
+                    if len(clicked) == 2:
+                        target = self.get_piece(clicked[0])
+                        target.move(clicked[1])
+                        clicked = []
+            self.pieceSprites.draw(self.screen)
+            pygame.display.update()

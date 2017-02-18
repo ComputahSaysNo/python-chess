@@ -44,9 +44,9 @@ class Board:
         self.halfMoveClock = 0  # Tracks the number of half-moves since the last pawn movement or piece capture
         self.moveClock = 0
         self.result = IN_PROGRESS
-        self.moves = ""
+        self.currentValidMoves = {}
+        self.validWithoutChecks = {}
         self.previousStates = []
-
 
     def load_fen(self, fen):
         """Loads a chess board in Forsyth-Edwards notation."""
@@ -68,11 +68,14 @@ class Board:
             rank_pointer -= 1
         self.activeColour = FEN_COLOUR_ALIASES[fen[1].upper()]
         self.canCastle = {WHITE: {KINGSIDE: False, QUEENSIDE: False}, BLACK: {KINGSIDE: False, QUEENSIDE: False}}
-        for char in fen[2]:
-            colour = WHITE
-            if char.islower():
-                colour = BLACK
-            self.canCastle[colour][FEN_CASTLING_ALIASES[char.upper()]] = True
+        if fen[2] == FEN_EMPTY:
+            pass
+        else:
+            for char in fen[2]:
+                colour = WHITE
+                if char.islower():
+                    colour = BLACK
+                self.canCastle[colour][FEN_CASTLING_ALIASES[char.upper()]] = True
         self.enPassantTarget = fen[3]
         self.halfMoveClock = int(fen[4])
         self.moveClock = int(fen[5])
@@ -101,15 +104,17 @@ class Board:
             output += rank + "/"
         output = output[:-1]  # To remove trailing backslash at the end
         castle_availability = ""
-        for colour in (WHITE, BLACK):
-            for direction in (KINGSIDE, QUEENSIDE):
-                if self.canCastle[colour][direction]:
-                    if colour == WHITE:
-                        castle_availability += rev_dict(FEN_CASTLING_ALIASES)[direction].upper()
-                    else:
-                        castle_availability += rev_dict(FEN_CASTLING_ALIASES)[direction].lower()
-        if castle_availability == "":
-            castle_availability == "-"
+        if self.canCastle == {WHITE: {KINGSIDE: False, QUEENSIDE: False}, BLACK: {KINGSIDE: False, QUEENSIDE: False}}:
+            castle_availability = FEN_EMPTY
+        else:
+            castle_availability = ""
+            for colour in (WHITE, BLACK):
+                for direction in (KINGSIDE, QUEENSIDE):
+                    if self.canCastle[colour][direction]:
+                        if colour == WHITE:
+                            castle_availability += rev_dict(FEN_CASTLING_ALIASES)[direction].upper()
+                        else:
+                            castle_availability += rev_dict(FEN_CASTLING_ALIASES)[direction].lower()
         output += " " + rev_dict(FEN_COLOUR_ALIASES)[
             self.activeColour].lower() + " " + castle_availability + " " + self.enPassantTarget + " " + str(
             self.halfMoveClock) + " " + str(
@@ -130,42 +135,13 @@ class Board:
         else:
             return False
 
-    def check_valid_move(self, start_pos, end_pos, force_piece=None, check_check=True):
-        """Takes in a start and end position and returns if it is a valid move or not (Long Algebraic Notation)"""
-        if start_pos == end_pos:
-            return False  # Invalid move because nothing has been moved
-
-        try:
-            piece_to_move = self.get_piece(start_pos)
-        except PieceNotFound:
-            return False  # Invalid move if there isn't a piece at the start position
-        else:
-            piece_type = piece_to_move.type
-            colour = piece_to_move.colour
-        try:
-            end_piece = self.get_piece(end_pos)
-        except PieceNotFound:
-            pass
-        else:
-            if end_piece.colour == colour:
-                return False  # You can't capture your own pieces
-
-        start_x, start_y = algebraic_to_xy(start_pos)
-        end_x, end_y = algebraic_to_xy(end_pos)
-        difference = (end_x - start_x, end_y - start_y)
-
-        if end_x > BOARD_WIDTH or end_y > BOARD_HEIGHT:
-            return False  # End position outside of board
-
-        if force_piece is not None:
-            piece_type = force_piece
-
-        if piece_type in (PAWN, KNIGHT, KING):
-
-            valid_moves = []
-
-            if piece_type == PAWN:
-                if colour == WHITE:
+    def get_all_valid_moves_from_pos(self, pos, check_check=True):
+        start_x, start_y = algebraic_to_xy(pos)
+        target_piece = self.get_piece(pos)
+        valid_moves = []
+        if target_piece.type in (PAWN, KNIGHT, KING):
+            if target_piece.type == PAWN:
+                if target_piece.colour == WHITE:
                     direction = 1
                     home_rank = 2
                 else:
@@ -184,100 +160,96 @@ class Board:
                     except PieceNotFound:
                         pass
                     else:
-                        if target.colour != colour:
+                        if target.colour != target_piece.colour:
                             valid_moves.append((i, direction))
 
-            elif piece_type == KNIGHT:
+            elif target_piece.type == KNIGHT:
                 valid_moves = [(2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2)]
 
-            elif piece_type == KING:
+            elif target_piece.type == KING:
                 valid_moves = [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1)]
 
-            if difference not in valid_moves:
-                return False
-
-        elif piece_type in (BISHOP, ROOK, QUEEN):
-
-            direction = [0, 0]
-
-            if piece_type == BISHOP:
-                if abs(difference[0]) != abs(difference[1]):
-                    return False
-
-            elif piece_type == ROOK:
-                if 0 not in difference:
-                    return False
-
-            elif piece_type == QUEEN:
-                piece_types = (BISHOP, ROOK)  # If it is a queen we just run the function again as a bishop and rook
-                results = []
-                for i in piece_types:
-                    results.append(self.check_valid_move(start_pos, end_pos, force_piece=i))
-                if True not in results:
-                    return False
-
-            for i in range(len(difference)):
-                if difference[i] > 0:
-                    direction[i] = 1
-                elif difference[i] < 0:
-                    direction[i] = -1
-                else:
-                    direction[i] = 0
-            pos_to_check = (start_x, start_y)
-            length_to_check = sorted((abs(difference[0]), abs(difference[1])))[1] - 1
-            visited = []
-            for i in range(length_to_check):
-                pos_to_check = (pos_to_check[0] + direction[0], pos_to_check[1] + direction[1])
-                visited.append(pos_to_check)
-            for square in visited:
-                if not self.is_empty(xy_to_algebraic(square[0], square[1])):
-                    return False
-
-        if check_check:
-            test_board = Board()
-            test_board.load_fen(self.export_fen())
-            test_board.make_move(start_pos, end_pos, check_valid=False, update_move_list=False)
-            if test_board.check_check() == colour:
-                return False
-
-        return True
-
-    def get_all_valid_moves_from_pos(self, pos):
+        elif target_piece.type in (BISHOP, ROOK, QUEEN):
+            for y in range(BOARD_HEIGHT):
+                for x in range(BOARD_WIDTH):
+                    difference = (x + 1) - start_x, (y + 1) - start_y
+                    if (target_piece.type == BISHOP or target_piece.type == QUEEN) and abs(difference[0]) == abs(
+                            difference[1]):
+                        valid_moves.append(difference)
+                    if (target_piece.type == ROOK or target_piece.type == QUEEN) and 0 in difference:
+                        valid_moves.append(difference)
+        to_test = []
+        for move in valid_moves:
+            end_pos = (start_x + move[0], start_y + move[1])
+            if 0 < end_pos[0] <= BOARD_WIDTH and 0 < end_pos[1] <= BOARD_HEIGHT:
+                to_test.append(xy_to_algebraic(end_pos[0], end_pos[1]))
         output = []
-        rank_pointer = 1
-        while rank_pointer <= BOARD_HEIGHT:
-            file_pointer = 1
-            while file_pointer <= BOARD_WIDTH:
-                end_pos = xy_to_algebraic(file_pointer, rank_pointer)
-                if self.check_valid_move(pos, end_pos):
-                    output.append(end_pos)
-                file_pointer += 1
-            rank_pointer += 1
+        for end_pos in to_test:
+            difference = (algebraic_to_xy(end_pos)[0] - start_x, algebraic_to_xy(end_pos)[1] - start_y)
+            add = True
+            if end_pos == pos:
+                add = False
+            try:
+                end_piece = self.get_piece(end_pos)
+            except PieceNotFound:
+                pass
+            else:
+                if end_piece.colour == target_piece.colour:
+                    add = False
+            if target_piece.type in (BISHOP, ROOK, QUEEN):
+                direction = [0, 0]
+                for i in range(len(difference)):
+                    if difference[i] > 0:
+                        direction[i] = 1
+                    elif difference[i] < 0:
+                        direction[i] = -1
+                    else:
+                        direction[i] = 0
+                pos_to_check = (start_x, start_y)
+                length_to_check = sorted((abs(difference[0]), abs(difference[1])))[1] - 1
+                visited = []
+                for i in range(length_to_check):
+                    pos_to_check = (pos_to_check[0] + direction[0], pos_to_check[1] + direction[1])
+                    visited.append(pos_to_check)
+                for square in visited:
+                    if not self.is_empty(xy_to_algebraic(square[0], square[1])):
+                        add = False
+            if check_check and add:
+                test_board = Board()
+                test_board.load_fen(self.export_fen())
+                if self.validWithoutChecks == {}:
+                    self.validWithoutChecks = self.get_all_valid_moves(check_check=False)
+                test_board.validWithoutChecks = self.validWithoutChecks
+                test_board.make_move(pos, end_pos, check_valid=False, update_board_info=False)
+                if test_board.check_check() == target_piece.colour:
+                    add = False
+            if add:
+                output.append(end_pos)
         return output
 
-    def get_all_valid_moves(self):
+    def get_all_valid_moves(self, check_check=True):
         output = {WHITE: {}, BLACK: {}}
-        for colour in (BLACK, WHITE):
-            for piece in self.activePieces:
-                if piece.colour == colour:
-                    piece_moves = self.get_all_valid_moves_from_pos(piece.pos)
-                    if piece_moves:
-                        output[colour][piece.pos] = piece_moves
+        for y in range(BOARD_HEIGHT):
+            for x in range(BOARD_WIDTH):
+                pos = xy_to_algebraic(x + 1, y + 1)
+                if self.is_empty(xy_to_algebraic(x + 1, y + 1)):
+                    output[pos] = []
+                else:
+                    output[pos] = self.get_all_valid_moves_from_pos(pos, check_check=check_check)
         return output
 
-    def make_move(self, start_pos, end_pos, check_valid=True, pawn_promotion=QUEEN, update_move_list=True):
+    def make_move(self, start_pos, end_pos, check_valid=True, pawn_promotion=QUEEN, update_board_info=True):
         try:
             target = self.get_piece(start_pos)
         except PieceNotFound:
             raise InvalidMoveError
         if check_valid:
-            if not self.check_valid_move(start_pos, end_pos):
+            if self.currentValidMoves == {}:
+                self.currentValidMoves = self.get_all_valid_moves()
+            if end_pos not in self.currentValidMoves[target.pos]:
                 raise InvalidMoveError
-        if update_move_list:
-            new_move = self.lan_to_san(start_pos, end_pos, pawn_promotion)
-            if self.activeColour == WHITE:
-                self.moves += str(self.moveClock) + ". "
-            self.moves += new_move + " "
+        if update_board_info:
+            self.previousStates.append(self.export_fen())
         try:
             end_piece = self.get_piece(end_pos)
         except PieceNotFound:
@@ -306,7 +278,7 @@ class Board:
                     self.capturedPieces.append(ep_capture_target)
                     self.activePieces.remove(ep_capture_target)
 
-        self.enPassantTarget = FEN_EMPTY_EPTARGET
+        self.enPassantTarget = FEN_EMPTY
         if target.type == PAWN:
             if (target.y == 8 and target.colour == WHITE) or (target.y == 1 and target.colour == BLACK):
                 if pawn_promotion in VALID_PAWN_PROMOTIONS:
@@ -332,12 +304,15 @@ class Board:
         if target.colour == BLACK:
             self.moveClock += 1
         self.inCheck = self.check_check()
-        if update_move_list:
+        if update_board_info:
             self.result = self.check_game_outcome()
-        self.previousStates.append(self.export_fen())
+            self.currentValidMoves = {}
+            self.validWithoutChecks = {}
         self.activeColour = WHITE if target.colour == BLACK else BLACK
 
     def check_check(self):
+        if self.validWithoutChecks == {}:
+            self.validWithoutChecks = self.get_all_valid_moves(check_check=False)
         for colour in (WHITE, BLACK):
             target_king = None
             for piece in self.activePieces:
@@ -347,7 +322,7 @@ class Board:
                 break
             for attacker in self.activePieces:
                 if attacker.colour != colour:
-                    if self.check_valid_move(attacker.pos, target_king.pos, check_check=False):
+                    if target_king.pos in self.validWithoutChecks[attacker.pos]:
                         return colour
         return None
 
@@ -382,7 +357,7 @@ class Board:
             current_king_pos = target_king.pos
             for i in range(2):
                 new_king_pos = xy_to_algebraic(algebraic_to_xy(current_king_pos)[0] + direction_multiplier, home_rank)
-                test_board.make_move(current_king_pos, new_king_pos, update_move_list=False)
+                test_board.make_move(current_king_pos, new_king_pos, update_board_info=True)
                 current_king_pos = new_king_pos
         except InvalidMoveError:
             raise InvalidMoveError
@@ -396,28 +371,31 @@ class Board:
         target_king.x, target_king.y = algebraic_to_xy(target_king.pos)
         target_rook.x, target_rook.y = algebraic_to_xy(target_rook.pos)
         self.canCastle[colour] = {KINGSIDE: False, QUEENSIDE: False}
-        self.enPassantTarget = FEN_EMPTY_EPTARGET
-        if self.activeColour == WHITE:
-            self.moves += str(self.moveClock) + ". "
-        else:
+        self.enPassantTarget = FEN_EMPTY
+        if self.activeColour == BLACK:
             self.moveClock += 1
         self.halfMoveClock += 1
-        self.moves += SAN_CASTLE_KINGSIDE if direction == KINGSIDE else SAN_CASTLE_QUEENSIDE + " "
         self.activeColour = BLACK if self.activeColour == WHITE else WHITE
 
     def check_game_outcome(self):
         if self.halfMoveClock >= 100:  # 100 half moves
             return DRAW  # Draw by 50-move rule
-        all_valid_moves = self.get_all_valid_moves()
-        for colour in (WHITE, BLACK):
-            if all_valid_moves[colour] == {}:
+        if self.currentValidMoves == {}:
+            self.currentValidMoves = self.get_all_valid_moves()
+        colours = [WHITE, BLACK]
+        for colour in colours:
+            colour_valid_moves = []
+            for piece in self.activePieces:
+                if piece.colour == colour:
+                    colour_valid_moves.append(self.currentValidMoves[piece.pos])
+            if len(colour_valid_moves) == 0:
                 if self.inCheck == colour:
                     if colour == WHITE:
-                        return BLACK_WIN  # If white has been checkmated, black wins
+                        return BLACK_WIN
                     else:
-                        return WHITE_WIN  # If black has been checkmated, white wins
+                        return WHITE_WIN
                 else:
-                    return DRAW  # Stalemate
+                    return DRAW
         return IN_PROGRESS
 
     def lan_to_san(self, start_pos, end_pos, pawn_promotion=QUEEN):
@@ -437,11 +415,11 @@ class Board:
         promotion = False
         if start_type == PAWN:
             if algebraic_to_xy(end_pos)[1] == 8 and start_piece.colour == WHITE or algebraic_to_xy(end_pos)[
-                    1] == 1 and start_piece.colour == BLACK:
+                1] == 1 and start_piece.colour == BLACK:
                 promotion = True
         test_board = Board()
         test_board.load_fen(self.export_fen())
-        test_board.make_move(start_pos, end_pos, check_valid=False, update_move_list=False)
+        test_board.make_move(start_pos, end_pos, check_valid=False, update_board_info=False)
         if test_board.check_game_outcome() == "1-0" or test_board.check_game_outcome() == "0-1":
             checkmate = True
         else:
@@ -453,7 +431,7 @@ class Board:
         ambiguous = []
         for piece in self.activePieces:
             if piece.colour == start_piece.colour and piece.type == start_type and piece.pos != start_pos:
-                if end_pos in self.get_all_valid_moves_from_pos(piece.pos):
+                if end_pos in self.currentValidMoves[piece.pos]:
                     ambiguous.append(piece.pos)
         if ambiguous:
             output = SAN_PIECE_ALIASES[start_type]

@@ -6,5 +6,5 @@ class InvalidMoveError(Exception):
     pass
 
 
-class InvalidPieceList(Exception):
+class AmbiguousSAN(Exception):
     pass

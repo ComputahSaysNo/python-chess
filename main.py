@@ -1,8 +1,7 @@
 from lib.game import *
 
-
 def test():
-    print(run_pgn("lib/test_pgn/test.pgn"))
+    run_pgn("lib/test_pgn/test.pgn")
 
 
 def main():
@@ -108,9 +107,14 @@ def main():
             waiting_player = bucket
             if board.check_game_outcome() != IN_PROGRESS:
                 break
+            print(board.export_fen())
     print(board.export_fen())
     print(board.result)
 
-
+def test2():
+    board = Board()
+    board.load_fen("1Q6/5pk1/2p3p1/1p2N2p/1b5P/1bn5/2r3P1/2K5 w - - 16 42")
+    print_board(board.export_fen())
+    print(board.check_game_outcome())
 if __name__ == '__main__':
     test()

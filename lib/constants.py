@@ -16,9 +16,11 @@ SAN_CHECK = "+"
 SAN_CHECKMATE = "#"
 SAN_PROMOTION = "="
 SAN_CAPTURE = "x"
+SAN_ANNOTATIONS = ["!!", "!", "!?", "?!", "?", "??", "", "+/-", "+/=", "=", "=/+", "-/+"]
 SAN_EN_PASSANT = "e.p."
-SAN_CASTLE_QUEENSIDE = "0-0-0"
-SAN_CASTLE_KINGSIDE = "0-0"
+SAN_CASTLE_QUEENSIDE = "O-O-O"
+SAN_CASTLE_KINGSIDE = "O-O"
+
 
 BOARD_WIDTH = BOARD_HEIGHT = 8
 
@@ -54,9 +56,11 @@ GUI_DARK_COLOUR = (209, 139, 69)
 GUI_TEXT_COLOUR = (255, 255, 255)
 GUI_HIGHLIGHT_COLOUR = (66, 155, 244)
 
-
 FILENAME_COLOUR = {WHITE: "white", BLACK: "black"}
 FILENAME_PIECETYPES = {KING: "king", QUEEN: "queen", ROOK: "rook", BISHOP: "bishop", KNIGHT: "knight", PAWN: "pawn"}
 
 GUI = 1
 TEXT = 2
+
+PGN_OPEN_COMMENT = "{"
+PGN_CLOSE_COMMENT = "}"

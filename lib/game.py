@@ -28,9 +28,38 @@ class Game:
 
 def run_pgn(location):
     pgn = open(location, "rt")
-    moves = []
+    lines = []
     for line in pgn:
-        moves.append(line.split())
+        lines.append(line.split())
+    moves = []
+    comment = False
+    for line in lines:
+        for part in line:
+            if not comment:
+                if part[0] == PGN_OPEN_COMMENT:
+                    comment = True
+                    if part[-1] == PGN_CLOSE_COMMENT:
+                        comment = False
+                    continue
+                moves.append(part)
+            else:
+                if part[-1] == PGN_CLOSE_COMMENT:
+                    comment = False
+    board = Board()
+    board.load_fen(START_BOARD)
+    for move in moves:
+        if move in (WHITE_WIN, BLACK_WIN, DRAW):
+            board.result = move
+            break
+        if move == str(board.moveClock) + ".":
+            continue
+        if move[:len(str(board.moveClock))+1] == str(board.moveClock) + ".":
+            move = move[len(str(board.moveClock))+1:]
+        print(move)
+        start, end = san_to_lan(board.export_fen(), move)
+        board.make_move(start, end, check_valid=False, update_board_info=False)
+    print(board.check_game_outcome())
+    print_board(board.export_fen())
 
 
 def lan_to_san(fen, start_pos, end_pos, pawn_promotion=QUEEN):
@@ -100,17 +129,21 @@ def lan_to_san(fen, start_pos, end_pos, pawn_promotion=QUEEN):
 
 def san_to_lan(fen, san):
     """Converts a move in Standard Algebraic Notation (SAN) to a start and end position"""
+    backup = san
     if san == SAN_CASTLE_KINGSIDE or san == SAN_CASTLE_QUEENSIDE:
-        return san
+        return san, None
     board = Board()
     board.load_fen(fen)
     board.currentValidMoves = board.get_all_valid_moves()
+    for annotation in SAN_ANNOTATIONS:
+        if san[-len(annotation):] == annotation:
+            san = san[:-len(annotation)]
     if san[-1] == SAN_CHECKMATE:
         san = san[:-1]
     if san[-1] == SAN_CHECK:
         san = san[:-1]
     if san[-len(SAN_EN_PASSANT):] == SAN_EN_PASSANT:
-        san = san[:-4]
+        san = san[:len(SAN_EN_PASSANT)]
     if san[-2] == SAN_PROMOTION:
         san = san[:-2]
     end_pos = san[-2:]
@@ -118,13 +151,11 @@ def san_to_lan(fen, san):
     if len(san) >= 1:
         if san[-1] == SAN_CAPTURE:
             san = san[:-1]
-    print(san)
     piece_type = PAWN
     if len(san) >= 1:
         if san[0].isupper():
             piece_type = rev_dict(SAN_PIECE_ALIASES)[san[0]]
             san = san[1:]
-    print(san)
     start_file = start_rank = None
     for char in san:
         if char.isalpha():
@@ -143,10 +174,10 @@ def san_to_lan(fen, san):
         new_possible_start_pieces = possible_start_pieces
         if start_file is not None:
             for piece in possible_start_pieces:
-                if algebraic_to_xy(piece.pos)[0] != start_file:
+                if piece.pos[0] != start_file:
                     new_possible_start_pieces.remove(piece)
         if len(new_possible_start_pieces) == 1:
-            return possible_start_pieces[0].pos, end_pos
+            return new_possible_start_pieces[0].pos, end_pos
         else:
             new_new_possible_start_pieces = new_possible_start_pieces
             if start_rank is not None:
@@ -158,4 +189,5 @@ def san_to_lan(fen, san):
         else:
             raise AmbiguousSAN
     else:
+        print(backup)
         raise ValueError

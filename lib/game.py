@@ -1,65 +1,154 @@
 from lib.display import *
+import requests
+import time
 
 
 class Game:
     def __init__(self):
-        self.event = ""
-        self.site = ""
-        self.date = ""
-        self.round = 1
-        self.white = ""
-        self.black = ""
-        self.result = IN_PROGRESS
-        self.moves = ""
-        self.current_fen = START_BOARD
-        self.board = None
-
-    def load_pgn(self):
-        pass
-
-    def reset_game(self):
-        pass
-
-    def run_game(self, display_mode):
+        self.tags = {PGN_EVENT: None,
+                     PGN_SITE: None,
+                     PGN_DATE: None,
+                     PGN_ROUND: None,
+                     PGN_WHITE: None,
+                     PGN_BLACK: None,
+                     PGN_RESULT: None}
         self.board = Board()
-        self.board.load_fen(self.current_fen)
-        current_player = WHITE
-        waiting_player = BLACK
+        self.moves = ""
+        self.new_game("Kevin", "Other")
+        print(self.tags)
 
-def run_pgn(location):
-    pgn = open(location, "rt")
-    lines = []
-    for line in pgn:
-        lines.append(line.split())
-    moves = []
-    comment = False
-    for line in lines:
-        for part in line:
-            if not comment:
-                if part[0] == PGN_OPEN_COMMENT:
-                    comment = True
+    def new_game(self, white_name, black_name, starting_fen=START_BOARD, event_name=PGN_DEFAULT_EVENT):
+        self.tags[PGN_EVENT] = event_name
+        freegeoip = "http://freegeoip.net/json"
+        geo_r = requests.get(freegeoip)
+        geo_json = geo_r.json()
+        self.tags[PGN_SITE] = ", ".join([geo_json["city"], geo_json["country_name"]])
+        self.tags[PGN_DATE] = time.strftime("%Y.%m.%d")
+        self.tags[PGN_ROUND] = "-"
+        self.tags[PGN_WHITE] = white_name
+        self.tags[PGN_BLACK] = black_name
+        self.tags[PGN_RESULT] = IN_PROGRESS
+        self.board = Board()
+        if starting_fen != START_BOARD:
+            self.tags[PGN_FEN] = starting_fen
+        self.board.load_fen(starting_fen)
+
+    def run_game(self, display=TEXT):
+        if display == TEXT:
+            current_player = self.board.activeColour
+            waiting_player = BLACK if current_player == WHITE else WHITE
+            player_names = {WHITE: self.tags[PGN_WHITE], BLACK: self.tags[PGN_BLACK]}
+            game_running = True
+            print_board(self.board.export_fen())
+            while game_running:
+                toggle_player = False
+                valid_action_chosen = False
+                while not valid_action_chosen:
+                    print("")
+                    print("It's " + str(player_names[current_player]) + "'s turn")
+                    action = str(
+                        input("Choose what you want to do [move, see valid, resign, offer draw, save]: ")).lower()
+                    if action == "move":
+                        valid = False
+                        while not valid:
+                            print("")
+                            move = str(input("Enter the move in algebraic notation: "))
+                            if move.lower() == "cancel":
+                                break
+                            try:
+                                start, end = san_to_lan(self.board.export_fen(), move)
+                            except AmbiguousSAN:
+                                print("Move ambiguous, please enter a starting file/rank")
+                                continue
+                            except InvalidMoveError:
+                                print("Invalid position/not a legal move")
+                                continue
+                            else:
+                                try:
+                                    self.board.make_move(start, end)
+                                except InvalidMoveError:
+                                    print("Invalid move")
+                                    continue
+                                else:
+                                    toggle_player = True
+                                    if current_player == WHITE:
+                                        self.moves += str(self.board.moveClock) + ". "
+                                    self.moves += lan_to_san(self.board.previousStates[-1], start, end) + " "
+                                    valid = True
+                                    valid_action_chosen = True
+                    elif action == "see valid":
+                        valid = False
+                        while not valid:
+                            print("")
+                            pos = str(input("Enter the position you'd like to check moves from: ")).lower()
+                            if pos == "cancel":
+                                break
+                            if not check_valid_pos(pos):
+                                print("That isn't a valid position")
+                                continue
+                            if self.board.is_empty(pos):
+                                print("There isn't a piece at that position")
+                                continue
+                            target_piece = self.board.get_piece(pos)
+                            valid_moves = self.board.get_all_valid_moves_from_pos(pos)
+                            if len(valid_moves) == 0:
+                                print("The " + str(target_piece.type) + " at " + str(pos) + " has no legal moves")
+                            else:
+                                print("The " + str(target_piece.type) + " at " + str(
+                                    pos) + " can make the following moves:")
+                                for move in valid_moves:
+                                    print(lan_to_san(self.board.export_fen(), pos, move))
+                            valid = True
+                    elif action == "resign":
+                        print("Are you sure?")
+                        confirm = str(input("Type 'CONFIRM' [all caps] to resign: "))
+                        if confirm == "CONFIRM":
+                            if self.board.activeColour == WHITE:
+                                self.board.result = BLACK_WIN
+                                self.moves += " " + BLACK_WIN
+                            else:
+                                self.board.result = WHITE_WIN
+                                self.moves += " " + WHITE_WIN
+                            valid_action_chosen = True
+                if self.board.result != IN_PROGRESS:
+                    game_running = False
+                if toggle_player:
+                    current_player, waiting_player = waiting_player, current_player
+                    print_board(self.board.export_fen())
+
+    def load_pgn(self, location):
+        pgn = open(location, "rt")
+        lines = []
+        for line in pgn:
+            lines.append(line.split())
+        moves = []
+        comment = False
+        for line in lines:
+            for part in line:
+                if not comment:
+                    if part[0] == PGN_OPEN_COMMENT:
+                        comment = True
+                        if part[-1] == PGN_CLOSE_COMMENT:
+                            comment = False
+                        continue
+                    moves.append(part)
+                else:
                     if part[-1] == PGN_CLOSE_COMMENT:
                         comment = False
-                    continue
-                moves.append(part)
-            else:
-                if part[-1] == PGN_CLOSE_COMMENT:
-                    comment = False
-    board = Board()
-    board.load_fen(START_BOARD)
-    for move in moves:
-        if move in (WHITE_WIN, BLACK_WIN, DRAW):
-            board.result = move
-            break
-        if move == str(board.moveClock) + ".":
-            continue
-        if move[:len(str(board.moveClock))+1] == str(board.moveClock) + ".":
-            move = move[len(str(board.moveClock))+1:]
-        print(move)
-        start, end = san_to_lan(board.export_fen(), move)
-        board.make_move(start, end, check_valid=False, update_board_info=False)
-    print(board.check_game_outcome())
-    print_board(board.export_fen())
+        self.board.load_fen(START_BOARD)
+        for move in moves:
+            if move in (WHITE_WIN, BLACK_WIN, DRAW):
+                self.board.result = move
+                break
+            if move == str(self.board.moveClock) + ".":
+                continue
+            if move[:len(str(self.board.moveClock)) + 1] == str(self.board.moveClock) + ".":
+                move = move[len(str(self.board.moveClock)) + 1:]
+            start, end = san_to_lan(self.board.export_fen(), move)
+
+            self.board.make_move(start, end, check_valid=False, update_board_info=False)
+            print_board(self.board.export_fen())
+
 
 
 def lan_to_san(fen, start_pos, end_pos, pawn_promotion=QUEEN):
@@ -91,7 +180,8 @@ def lan_to_san(fen, start_pos, end_pos, pawn_promotion=QUEEN):
         checkmate = True
     else:
         checkmate = False
-    if not checkmate and test_board.check_check() is not None:
+    other_colour = BLACK if start_piece.colour == WHITE else WHITE
+    if not checkmate and test_board.check_check(other_colour) is not None:
         check = True
     else:
         check = False
@@ -129,6 +219,7 @@ def lan_to_san(fen, start_pos, end_pos, pawn_promotion=QUEEN):
 
 def san_to_lan(fen, san):
     """Converts a move in Standard Algebraic Notation (SAN) to a start and end position"""
+    print(san)
     backup = san
     if san == SAN_CASTLE_KINGSIDE or san == SAN_CASTLE_QUEENSIDE:
         return san, None
@@ -190,4 +281,4 @@ def san_to_lan(fen, san):
             raise AmbiguousSAN
     else:
         print(backup)
-        raise ValueError
+        raise InvalidMoveError

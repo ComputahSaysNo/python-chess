@@ -45,9 +45,6 @@ class Board:
         self.halfMoveClock = 0  # Tracks the number of half-moves since the last pawn movement or piece capture
         self.moveClock = 0
         self.result = IN_PROGRESS
-        self.currentValidMoves = {}
-        self.validWithoutChecks = {}
-        self.previousStates = []
 
     def load_fen(self, fen):
         """Loads a chess board in Forsyth-Edwards notation."""
@@ -135,13 +132,13 @@ class Board:
         else:
             return False
 
-    def check_valid_move(self, start, end):
+    def check_valid_move(self, start, end, check_colour=True):
         if start == end:
             return False
         if end not in self.gen_pseudo_valid_moves(start):
             return False
         target = self.get_piece(start)
-        if target.colour != self.activeColour:
+        if target.colour != self.activeColour and check_colour:
             return False
         test_board = copy.deepcopy(self)
         test_board.make_move(start, end, check_valid=False)
@@ -279,7 +276,7 @@ class Board:
                     elif check_valid:
                         raise InvalidMoveError
                 else:
-                    direction = 1 if target.colour == WHITE else BLACK
+                    direction = 1 if target.colour == WHITE else -1
                     starty = algebraic_to_xy(start)[1]
                     if target.y - starty == direction * 2:
                         self.enPassantTarget = xy_to_algebraic(target.x, target.y - direction)
@@ -359,11 +356,11 @@ class Board:
             colour_valid_moves = []
             for piece in self.activePieces:
                 if piece.colour == colour:
-                    piece_valid_moves = self.gen_pseudo_valid_moves(piece.pos)
-                    piece_valid_moves_checked = []
-                    for move in piece_valid_moves:
-                        if self.check_valid_move(piece.pos, move):
-                            piece_valid_moves_checked.append(move)
+                    piece_pseudo_valid_moves = self.gen_pseudo_valid_moves(piece.pos)
+                    piece_valid_moves = []
+                    for move in piece_pseudo_valid_moves:
+                        if self.check_valid_move(piece.pos, move, check_colour=False):
+                            piece_valid_moves.append(move)
                     if piece_valid_moves:
                         colour_valid_moves.append(piece_valid_moves)
             if len(colour_valid_moves) == 0:

@@ -1,6 +1,9 @@
 from lib.display import *
-import requests
 import time
+
+class Game():
+    def __init__(self):
+        pass
 
 def san_to_lan(fen, san):
     """Converts a move in Standard Algebraic Notation (SAN) to a start and end position"""
@@ -65,3 +68,70 @@ def san_to_lan(fen, san):
     else:
         print(backup)
         raise ValueError
+
+def lan_to_san(fen, start_pos, end_pos, pawn_promotion=QUEEN, check_checkmate=True):
+    """Converts a start position and end position to standard algebraic notation"""
+    board = Board()
+    board.load_fen(fen)
+    if start_pos in (SAN_CASTLE_KINGSIDE, PGN_CASTLE_KINGSIDE):
+        return SAN_CASTLE_KINGSIDE
+    if start_pos in (SAN_CASTLE_QUEENSIDE, PGN_CASTLE_QUEENSIDE):
+        return SAN_CASTLE_QUEENSIDE
+    start_piece = board.get_piece(start_pos)
+    start_type = start_piece.type
+    en_passant = False
+    try:
+        board.get_piece(end_pos)
+    except PieceNotFound:
+        capture = False
+        if start_type == PAWN and algebraic_to_xy(end_pos)[0] != algebraic_to_xy(start_pos)[0]:
+            capture = True
+            en_passant = True
+    else:
+        capture = True
+    promotion = False
+    if start_type == PAWN:
+        if algebraic_to_xy(end_pos)[1] == 8 and start_piece.colour == WHITE or algebraic_to_xy(end_pos)[
+            1] == 1 and start_piece.colour == BLACK:
+            promotion = True
+    test_board = copy.deepcopy(board)
+    test_board.make_move(start_pos, end_pos, check_valid=False)
+    checkmate = False
+    if check_checkmate:
+        outcome = test_board.check_game_outcome()
+        checkmate = outcome in (WHITE_WIN, BLACK_WIN)
+    other_colour = WHITE if start_piece.type == BLACK else BLACK
+    if not checkmate and test_board.check_check(other_colour):
+        check = True
+    else:
+        check = False
+    ambiguous = []
+    for piece in board.activePieces:
+        if piece.colour == start_piece.colour and piece.type == start_type and piece.pos != start_pos:
+            if board.check_valid_move(piece.pos, end_pos):
+                ambiguous.append(piece.pos)
+    if ambiguous:
+        output = SAN_PIECE_ALIASES[start_type]
+        if start_piece.x not in [algebraic_to_xy(i)[0] for i in ambiguous]:
+            output += start_pos[0]
+        elif start_piece.y not in [algebraic_to_xy(i)[1] for i in ambiguous]:
+            output += start_pos[1]
+        else:
+            output += start_pos
+    else:
+        output = SAN_PIECE_ALIASES[start_type]
+    if capture:
+        if start_type == PAWN:
+            output = start_pos[0] + SAN_CAPTURE
+        else:
+            output += SAN_CAPTURE
+    output += end_pos
+    if promotion:
+        output += SAN_PROMOTION + SAN_PIECE_ALIASES[pawn_promotion]
+    if en_passant:
+        output += SAN_EN_PASSANT
+    if check:
+        output += SAN_CHECK
+    if checkmate:
+        output += SAN_CHECKMATE
+    return output

@@ -1,6 +1,6 @@
 import os
 
-import pygame
+# import pygame
 
 from lib.board import *
 

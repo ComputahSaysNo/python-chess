@@ -1,12 +1,9 @@
-import os
-
 # import pygame
-
-from lib.board import *
-
+from lib.constants import *
 
 def print_board(fen):
-    x_header = "   a  b  c  d  e  f  g  h"
+    """Prints a board in text format based on a FEN"""
+    x_header = "   " + "  ".join([ALPHABET[i] for i in range(BOARD_WIDTH)])
     board = fen.split()[0]
     ranks = board.split("/")
     output = [x_header]
@@ -25,4 +22,3 @@ def print_board(fen):
     output.append(x_header)
     for i in output:
         print(i)
-

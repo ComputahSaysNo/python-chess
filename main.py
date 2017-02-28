@@ -1,7 +1,7 @@
 from lib.game import *
 from lib.board import *
 from lib.display import *
-import time
+import sys
 
 
 def test():
@@ -61,21 +61,5 @@ if __name__ == '__main__':
     game.new_game(event="Python match",white="Kevin",black="niveK")
     print_board(game.board.export_fen())
     game.load_pgn("lib/test_pgn/test.pgn")
-    print_board(game.board.export_fen())
     display = ChessGUI()
-    move_counter = 0
-    while move_counter < len(game.previousBoardStates):
-        display.draw_board(game.previousBoardStates[move_counter])
-        next_move = False
-        while not next_move:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RIGHT:
-                        next_move = True
-                        move_counter += 1
-                    if event.key == pygame.K_LEFT:
-                        next_move = True
-                        if move_counter > 0:
-                            move_counter -= 1
+    display.view_moves(game)

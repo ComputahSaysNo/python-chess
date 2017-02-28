@@ -1,5 +1,6 @@
 from lib.board import *
-
+from lib.display import *
+import time
 
 class Game:
     def __init__(self):
@@ -11,6 +12,7 @@ class Game:
                         PGN_BLACK: None,
                         PGN_RESULT: None}
         self.moves = ""
+        self.previousBoardStates = []
         self.board = Board()
 
     def new_game(self, event=PGN_DEFAULT_EVENT, site=CURRENT_LOCATION, date=CURRENT_DATE, white="White", black="Black",
@@ -24,10 +26,13 @@ class Game:
         if start_fen != START_BOARD:
             self.pgnTags[PGN_FEN] = start_fen
         self.moves = ""
+        self.previousBoardStates = []
         self.board.load_fen(start_fen)
 
     def load_pgn(self, location):
         """Loads a game from a PGN file (i.e. tags are updated and board is moved)"""
+        self.moves = ""
+        self.previousBoardStates = []
         pgn = open(location, "rt")
         lines = []
         for line in pgn:
@@ -59,6 +64,7 @@ class Game:
             prev_fen = self.board.export_fen()
             if self.board.activeColour == WHITE:
                 self.moves += str(self.board.moveClock) + ". "
+            self.previousBoardStates.append(self.board.export_fen())
             self.board.make_move(start, end, pawn_promotion=promotion)
             if self.board.check_check(self.board.activeColour):
                 check_checkmate = True

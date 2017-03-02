@@ -49,17 +49,19 @@ IN_PROGRESS = "*"
 # GUI constants and colours
 GUI_DIMENSIONS = (1600, 1000)
 GUI_CAPTION = "Chess"
-GUI_FONT_NAME = "lib/font/Aquatico-Regular.otf"
+GUI_FONT_NAME = "lib/font/libel-suit-rg.ttf"
 GUI_BOARD_START_POS = (100, 100)
 GUI_SQUARE_SIZE = 100  # pixels
 GUI_FPS = 60
 GUI_BG_COLOUR = (49, 46, 43)
+GUI_MOVE_TEXT_BOX_COLOUR = (40, 40, 40)
 GUI_LIGHT_COLOUR = (238, 238, 210)
 GUI_DARK_COLOUR = (118, 150, 86)
 GUI_TEXT_COLOUR = (255, 255, 255)
 GUI_HIGHLIGHT_COLOUR_1 = (186, 203, 68)
 GUI_HIGHLIGHT_COLOUR_2 = (247, 247, 131)
-
+GUI_BUTTON_COLOUR = GUI_DARK_COLOUR
+GUI_BUTTON_CLICKED_COLOUR = (123, 183, 55)
 # Info for finding the piece images in the filesystem.
 FILENAME_COLOUR = {WHITE: "white", BLACK: "black"}
 FILENAME_PIECETYPES = {KING: "king", QUEEN: "queen", ROOK: "rook", BISHOP: "bishop", KNIGHT: "knight", PAWN: "pawn"}

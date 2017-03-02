@@ -1,5 +1,4 @@
 from lib.board import *
-from lib.display import *
 
 
 class Game:
@@ -38,6 +37,12 @@ class Game:
         pgn = open(location, "rt")
         lines = []
         for line in pgn:
+            if line[0] == PGN_OPEN_TAG:
+                line = line[1:-2]
+                tag = line.split()[0]
+                value = " ".join(line.split()[1:])[1:-1]
+                self.pgnTags[tag] = value
+                continue
             lines.append(line.split())
         moves = []
         comment = False

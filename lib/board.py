@@ -141,13 +141,30 @@ class Board:
         else:
             return False
 
-    def check_valid_move(self, start, end, check_colour=True, pawn_promotion=None):
+    def get_all_valid_from_pos(self, pos):
+        output = []
+        pseudo = self.gen_pseudo_valid_moves(pos)
+        for move in pseudo:
+            if self.check_valid_move(pos, move, check_pseudo=False):
+                output.append(move)
+        return(output)
+
+    def check_valid_move(self, start, end, check_colour=True, pawn_promotion=None, check_pseudo=True):
         """Takes in a start and end position in algebraic notation and returns True if that is a valid move,
         or False if it isn't. This function detects potential checks caused by the move and adjusts the output
         accordingly, as well as making sure promotions are valid."""
+        if start in (SAN_CASTLE_KINGSIDE, SAN_CASTLE_QUEENSIDE, PGN_CASTLE_KINGSIDE, PGN_CASTLE_QUEENSIDE):
+            test_board = copy.deepcopy(self)
+            direction = KINGSIDE if start in (SAN_CASTLE_KINGSIDE, PGN_CASTLE_KINGSIDE) else QUEENSIDE
+            try:
+                test_board.castle(self.activeColour, direction)
+            except InvalidMoveError:
+                return False
+            else:
+                return True
         if start == end:
             return False
-        if end not in self.gen_pseudo_valid_moves(start):
+        if check_pseudo and end not in self.gen_pseudo_valid_moves(start):
             return False
         target = self.get_piece(start)
         if target.colour != self.activeColour and check_colour:

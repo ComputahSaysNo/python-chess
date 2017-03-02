@@ -58,7 +58,6 @@ def main():
 
 if __name__ == '__main__':
     game = Game()
-    game.new_game(event="Python match",white="test1",black="test2")
-    game.load_pgn("lib/test_pgn/test.pgn")
+    game.new_game(event="Python match",white="Kevin",black="Somebody")
     display = ChessGUI()
-    display.view_moves(game)
+    display.run_game(game)

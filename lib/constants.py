@@ -62,6 +62,8 @@ GUI_HIGHLIGHT_COLOUR_1 = (186, 203, 68)
 GUI_HIGHLIGHT_COLOUR_2 = (247, 247, 131)
 GUI_BUTTON_COLOUR = GUI_DARK_COLOUR
 GUI_BUTTON_CLICKED_COLOUR = (123, 183, 55)
+HUMAN = 1
+COMPUTER = 2
 # Info for finding the piece images in the filesystem.
 FILENAME_COLOUR = {WHITE: "white", BLACK: "black"}
 FILENAME_PIECETYPES = {KING: "king", QUEEN: "queen", ROOK: "rook", BISHOP: "bishop", KNIGHT: "knight", PAWN: "pawn"}
@@ -75,6 +77,8 @@ PGN_OPEN_COMMENT = "{"
 PGN_CLOSE_COMMENT = "}"
 PGN_OPEN_VARIATION = "("
 PGN_CLOSE_VARIATION = ")"
+PGN_OPEN_TAG = "["
+PGN_CLOSE_TAG = "["
 PGN_DEFAULT_EVENT = "Casual Game"
 PGN_EVENT = "Event"
 PGN_SITE = "Site"

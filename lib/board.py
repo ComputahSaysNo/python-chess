@@ -1,23 +1,28 @@
 from lib.constants import *
 from lib.exceptions import *
+import copy
 
 
 def algebraic_to_xy(pos):
+    """Converts an algebraic notation position (like e3) to its raw x and y positions (like (5,3))"""
     return ALPHABET.index(pos[0]) + 1, int(pos[1])
 
 
 def xy_to_algebraic(x, y):
+    """Takes in x and y coordinates and returns the algebraic position"""
     return ALPHABET[x - 1] + str(y)
 
 
 def rev_dict(dictionary):
+    """Reverses the values and keys in a dictionary"""
     return dict((v, k) for k, v in dictionary.items())
 
 
 def check_valid_pos(pos):
+    """Checks if an algebraic position is a valid chessboard square"""
     if len(pos) == 2 and pos[0].isalpha() and pos[1].isdigit():
         x, y = algebraic_to_xy(pos)
-        return x <= BOARD_WIDTH and y <= BOARD_HEIGHT
+        return 0 < x <= BOARD_WIDTH and 0 < y <= BOARD_HEIGHT
     return False
 
 
@@ -32,7 +37,8 @@ class Piece:
 
 
 class Board:
-    """A class representing the chess board."""
+    """A class representing the chess board. Keeps track of all the pieces in a list, and piece movement is handled
+    at this level. Main export format for this class is FEN (Forsyth-Edwards Notation)"""
 
     def __init__(self):
         self.activePieces = []
@@ -40,15 +46,14 @@ class Board:
         self.activeColour = WHITE  # i.e. this colour is about to move
         self.inCheck = None
         self.canCastle = {WHITE: {KINGSIDE: False, QUEENSIDE: False}, BLACK: {KINGSIDE: False, QUEENSIDE: False}}
-        self.enPassantTarget = ""
+        self.enPassantTarget = ""  # If a pawn has just moved two spaces, this will be set to the square "behind" it
         self.halfMoveClock = 0  # Tracks the number of half-moves since the last pawn movement or piece capture
         self.moveClock = 0
         self.result = IN_PROGRESS
-        self.currentValidMoves = {}
-        self.previousStates = []
 
     def load_fen(self, fen):
         """Loads a chess board in Forsyth-Edwards notation."""
+        self.activePieces = []
         fen = fen.split(" ")  # Splits the FEN into its 6 fields.
         ranks = fen[0].split("/")
         rank_pointer = 8
@@ -80,6 +85,7 @@ class Board:
         self.moveClock = int(fen[5])
 
     def export_fen(self):
+        """Exports the board's attributes in the FEN format"""
         output = ""
         for rank_pointer in range(BOARD_HEIGHT, 0, -1):
             rank = ""
@@ -120,12 +126,14 @@ class Board:
         return output
 
     def get_piece(self, pos):
+        """Takes in a position in algebraic position and returns the piece there. Is an error if no such piece exists"""
         for piece in self.activePieces:
             if piece.pos == pos:
                 return piece
         raise PieceNotFound
 
     def is_empty(self, pos):
+        """Takes in a position in algebraic notation and returns True if it is empty and False if it isn't"""
         try:
             self.get_piece(pos)
         except PieceNotFound:
@@ -133,130 +141,146 @@ class Board:
         else:
             return False
 
-    def get_all_valid_moves_from_pos(self, pos, check_check=True):
-        start_x, start_y = algebraic_to_xy(pos)
-        target_piece = self.get_piece(pos)
-        valid_moves = []
-        if target_piece.type in (PAWN, KNIGHT, KING):
-            if target_piece.type == PAWN:
-                if target_piece.colour == WHITE:
-                    direction = 1
-                    home_rank = 2
-                else:
-                    direction = -1
-                    home_rank = 7
-                if self.is_empty(xy_to_algebraic(start_x, start_y + direction)):
-                    valid_moves.append((0, direction))
-                    if self.is_empty(xy_to_algebraic(start_x, start_y + direction * 2)) and start_y == home_rank:
-                        valid_moves.append((0, direction * 2))
-                for i in (1, -1):
-                    capture_pos = xy_to_algebraic(start_x + i, start_y + direction)
-                    if capture_pos == self.enPassantTarget:
-                        valid_moves.append((i, direction))
-                    try:
-                        target = self.get_piece(capture_pos)
-                    except PieceNotFound:
-                        pass
-                    else:
-                        if target.colour != target_piece.colour:
-                            valid_moves.append((i, direction))
-
-            elif target_piece.type == KNIGHT:
-                valid_moves = [(2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2)]
-
-            elif target_piece.type == KING:
-                valid_moves = [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1)]
-
-        elif target_piece.type in (BISHOP, ROOK, QUEEN):
-            for y in range(BOARD_HEIGHT):
-                for x in range(BOARD_WIDTH):
-                    difference = (x + 1) - start_x, (y + 1) - start_y
-                    if (target_piece.type == BISHOP or target_piece.type == QUEEN) and abs(difference[0]) == abs(
-                            difference[1]):
-                        valid_moves.append(difference)
-                    if (target_piece.type == ROOK or target_piece.type == QUEEN) and 0 in difference:
-                        valid_moves.append(difference)
-        to_test = []
-        for move in valid_moves:
-            end_pos = (start_x + move[0], start_y + move[1])
-            if 0 < end_pos[0] <= BOARD_WIDTH and 0 < end_pos[1] <= BOARD_HEIGHT:
-                to_test.append(xy_to_algebraic(end_pos[0], end_pos[1]))
+    def get_all_valid_from_pos(self, pos):
         output = []
-        for end_pos in to_test:
-            difference = (algebraic_to_xy(end_pos)[0] - start_x, algebraic_to_xy(end_pos)[1] - start_y)
-            add = True
-            if end_pos == pos:
-                add = False
+        pseudo = self.gen_pseudo_valid_moves(pos)
+        for move in pseudo:
+            if self.check_valid_move(pos, move, check_pseudo=False):
+                output.append(move)
+        return(output)
+
+    def check_valid_move(self, start, end, check_colour=True, pawn_promotion=None, check_pseudo=True):
+        """Takes in a start and end position in algebraic notation and returns True if that is a valid move,
+        or False if it isn't. This function detects potential checks caused by the move and adjusts the output
+        accordingly, as well as making sure promotions are valid."""
+        if start in (SAN_CASTLE_KINGSIDE, SAN_CASTLE_QUEENSIDE, PGN_CASTLE_KINGSIDE, PGN_CASTLE_QUEENSIDE):
+            test_board = copy.deepcopy(self)
+            direction = KINGSIDE if start in (SAN_CASTLE_KINGSIDE, PGN_CASTLE_KINGSIDE) else QUEENSIDE
             try:
-                end_piece = self.get_piece(end_pos)
-            except PieceNotFound:
-                pass
+                test_board.castle(self.activeColour, direction)
+            except InvalidMoveError:
+                return False
             else:
-                if end_piece.colour == target_piece.colour:
-                    add = False
-            if target_piece.type in (BISHOP, ROOK, QUEEN):
-                direction = [0, 0]
-                for i in range(len(difference)):
-                    if difference[i] > 0:
-                        direction[i] = 1
-                    elif difference[i] < 0:
-                        direction[i] = -1
-                    else:
-                        direction[i] = 0
-                pos_to_check = (start_x, start_y)
-                length_to_check = sorted((abs(difference[0]), abs(difference[1])))[1] - 1
-                visited = []
-                for i in range(length_to_check):
-                    pos_to_check = (pos_to_check[0] + direction[0], pos_to_check[1] + direction[1])
-                    visited.append(pos_to_check)
-                for square in visited:
-                    if not self.is_empty(xy_to_algebraic(square[0], square[1])):
-                        add = False
-            if check_check and add:
-                test_board = Board()
-                test_board.load_fen(self.export_fen())
-                test_board.make_move(pos, end_pos, check_valid=False, update_board_info=False)
-                if test_board.check_check() == target_piece.colour:
-                    add = False
-            if add:
-                output.append(end_pos)
-        return output
+                return True
+        if start == end:
+            return False
+        if check_pseudo and end not in self.gen_pseudo_valid_moves(start):
+            return False
+        target = self.get_piece(start)
+        if target.colour != self.activeColour and check_colour:
+            return False
+        test_board = copy.deepcopy(self)
+        test_board.make_move(start, end, check_valid=False, pawn_promotion=pawn_promotion)
+        if test_board.check_check(target.colour):
+            return False
+        return True
 
-    def get_all_valid_moves(self, check_check=True, check_colour=True):
-        output = {WHITE: {}, BLACK: {}}
-        for y in range(BOARD_HEIGHT):
-            for x in range(BOARD_WIDTH):
-                pos = xy_to_algebraic(x + 1, y + 1)
-                if self.is_empty(xy_to_algebraic(x + 1, y + 1)):
-                    output[pos] = []
+    def gen_pseudo_valid_moves(self, start):
+        """Generates pseudo-valid moves from a given position, i.e. those set out by the piece movement rules
+        but ignoring potential checks caused. Must be validated by check_valid_move later."""
+        try:
+            target = self.get_piece(start)
+        except PieceNotFound:
+            return []
+        output = []
+        if target.type == PAWN:
+            direction = 1 if target.colour == WHITE else -1
+            home_rank = 2 if target.colour == WHITE else 7
+            one_ahead = xy_to_algebraic(target.x, target.y + direction)
+            if self.is_empty(one_ahead):
+                output.append(one_ahead)
+                two_ahead = xy_to_algebraic(target.x, target.y + 2 * direction)
+                if self.is_empty(two_ahead) and target.y == home_rank:
+                    output.append(two_ahead)
+            for side in (1, -1):
+                capture_pos = xy_to_algebraic(target.x + side, target.y + direction)
+                if capture_pos == self.enPassantTarget:
+                    output.append(capture_pos)
+                try:
+                    piece_to_capture = self.get_piece(capture_pos)
+                except PieceNotFound:
+                    pass
                 else:
-                    piece = self.get_piece(pos)
-                    if piece.colour != self.activeColour and check_colour:
-                        output[pos] = []
-                    else:
-                        output[pos] = self.get_all_valid_moves_from_pos(pos, check_check=check_check)
-        return output
+                    if piece_to_capture.colour != target.colour:
+                        output.append(capture_pos)
+        elif target.type == KNIGHT:
+            knight_valid_diffs = [(2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2)]
+            for diff in knight_valid_diffs:
+                output.append(xy_to_algebraic(target.x + diff[0], target.y + diff[1]))
+        elif target.type == KING:
+            king_valid_diffs = [(1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1)]
+            for diff in king_valid_diffs:
+                output.append(xy_to_algebraic(target.x + diff[0], target.y + diff[1]))
+        elif target.type in (BISHOP, ROOK, QUEEN):
+            valid_directions = []
+            if target.type == BISHOP:
+                valid_directions = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+            elif target.type == ROOK:
+                valid_directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+            elif target.type == QUEEN:
+                valid_directions = [(1, 1), (1, -1), (-1, 1), (-1, -1), (1, 0), (-1, 0), (0, 1), (0, -1)]
+            for direction in valid_directions:
+                current_pos = [target.x, target.y]
+                while True:
+                    new_pos = [current_pos[0] + direction[0], current_pos[1] + direction[1]]
+                    if not check_valid_pos(xy_to_algebraic(new_pos[0], new_pos[1])):
+                        break
+                    if self.is_empty(xy_to_algebraic(new_pos[0], new_pos[1])):
+                        output.append(xy_to_algebraic(new_pos[0], new_pos[1]))
+                        current_pos = new_pos
+                        continue
+                    piece_in_way = self.get_piece(xy_to_algebraic(new_pos[0], new_pos[1]))
+                    if piece_in_way.colour != target.colour:
+                        output.append(xy_to_algebraic(new_pos[0], new_pos[1]))
+                    break
+        output_checked = []
+        for i in output:
+            if check_valid_pos(i):
+                try:
+                    end_piece = self.get_piece(i)
+                except PieceNotFound:
+                    pass
+                else:
+                    if end_piece.colour == target.colour:
+                        continue
+                output_checked.append(i)
+        return output_checked
 
-    def make_move(self, start_pos, end_pos, check_valid=True, pawn_promotion=QUEEN, update_board_info=True):
-        if start_pos == SAN_CASTLE_KINGSIDE:
-            self.castle(self.activeColour, KINGSIDE)
+    def check_check(self, colour):
+        """Takes in either BLACK or WHITE and returns True if that colour is in check, else False"""
+        target_king = None
+        for piece in self.activePieces:
+            if piece.type == KING and piece.colour == colour:
+                target_king = piece
+        if target_king is None:
+            return False
+        for attacker in self.activePieces:
+            if attacker.colour != colour:
+                if target_king.pos in self.gen_pseudo_valid_moves(attacker.pos):
+                    return True
+        return False
 
-        elif start_pos == SAN_CASTLE_QUEENSIDE:
-            self.castle(self.activeColour, QUEENSIDE)
-
+    def make_move(self, start, end, check_valid=True, pawn_promotion=None):
+        """Takes a start and end position and actually makes the move. If check_valid is true, appropriate checks
+        are made before the move is carried out, though setting it to False can save CPU time. If a pawn promotion
+        occurs, this is handled here. Board information such as the move clock and en-passant status is updated as
+        well"""
+        if start in (SAN_CASTLE_KINGSIDE, PGN_CASTLE_KINGSIDE):
+            self.castle(self.activeColour, KINGSIDE, check_valid=check_valid)
+        elif start in (SAN_CASTLE_QUEENSIDE, PGN_CASTLE_QUEENSIDE):
+            self.castle(self.activeColour, QUEENSIDE, check_valid=check_valid)
         else:
             try:
-                target = self.get_piece(start_pos)
+                target = self.get_piece(start)
             except PieceNotFound:
-                raise InvalidMoveError
-            if check_valid:
-                if self.currentValidMoves == {}:
-                    self.currentValidMoves = self.get_all_valid_moves()
-                if end_pos not in self.currentValidMoves[target.pos]:
+                if check_valid:
                     raise InvalidMoveError
-            self.previousStates.append(self.export_fen())
+                return
+            if check_valid:
+                if not self.check_valid_move(start, end, pawn_promotion=pawn_promotion):
+                    raise InvalidMoveError
             try:
-                end_piece = self.get_piece(end_pos)
+                end_piece = self.get_piece(end)
             except PieceNotFound:
                 if target.type != PAWN:
                     self.halfMoveClock += 1
@@ -266,39 +290,32 @@ class Board:
                 self.capturedPieces.append(end_piece)
                 self.activePieces.remove(end_piece)
                 self.halfMoveClock = 0
-            target.pos = end_pos
-            target.x, target.y = algebraic_to_xy(end_pos)
-            if end_pos == self.enPassantTarget and target.type == PAWN:
-                if target.colour == WHITE:
-                    direction = 1
-                else:
-                    direction = -1
+            target.pos = end
+            target.x, target.y = algebraic_to_xy(end)
+            if end == self.enPassantTarget and target.type == PAWN:
+                direction = 1 if target.colour == WHITE else -1
                 ep_capture_pos = xy_to_algebraic(target.x, target.y - direction)
                 try:
-                    ep_capture_target = self.get_piece(ep_capture_pos)
+                    ep_capture_piece = self.get_piece(ep_capture_pos)
                 except PieceNotFound:
-                    pass
+                    if check_valid:
+                        raise InvalidMoveError
                 else:
-                    if ep_capture_target.colour != target.colour:
-                        self.capturedPieces.append(ep_capture_target)
-                        self.activePieces.remove(ep_capture_target)
-
+                    self.capturedPieces.append(ep_capture_piece)
+                    self.activePieces.remove(ep_capture_piece)
             self.enPassantTarget = FEN_EMPTY
             if target.type == PAWN:
                 if (target.y == 8 and target.colour == WHITE) or (target.y == 1 and target.colour == BLACK):
                     if pawn_promotion in VALID_PAWN_PROMOTIONS:
                         target.type = pawn_promotion
                     else:
-                        raise InvalidMoveError
+                        if check_valid:
+                            raise InvalidMoveError
                 else:
-                    if target.colour == WHITE:
-                        direction = 1
-                    else:
-                        direction = -1
-                    starty = algebraic_to_xy(start_pos)[1]
+                    direction = 1 if target.colour == WHITE else -1
+                    starty = algebraic_to_xy(start)[1]
                     if target.y - starty == direction * 2:
                         self.enPassantTarget = xy_to_algebraic(target.x, target.y - direction)
-            # Remove appropriate castling rights if a king or rook is moved.
             elif target.type == KING:
                 self.canCastle[target.colour] = {KINGSIDE: False, QUEENSIDE: False}
             elif target.type == ROOK:
@@ -308,65 +325,51 @@ class Board:
                     self.canCastle[target.colour][QUEENSIDE] = False
             if target.colour == BLACK:
                 self.moveClock += 1
-            self.activeColour = WHITE if target.colour == BLACK else BLACK
-            if update_board_info:
-                self.inCheck = self.check_check()
-                self.result = self.check_game_outcome()
-                self.currentValidMoves = self.get_all_valid_moves()
+            self.activeColour = BLACK if target.colour == WHITE else WHITE
 
-    def check_check(self):
-        for colour in (WHITE, BLACK):
-            target_king = None
-            for piece in self.activePieces:
-                if piece.type == KING and piece.colour == colour:
-                    target_king = piece
-            if target_king is None:
-                break
-            for attacker in self.activePieces:
-                if attacker.colour != colour:
-                    if target_king.pos in self.get_all_valid_moves_from_pos(attacker.pos, check_check=False):
-                        return colour
-        return None
-
-    def castle(self, colour, direction):
-        if self.inCheck == colour:
+    def castle(self, colour, direction, check_valid=True):
+        """Takes in a colour (BLACK or WHITE) and a direction (KINGSIDE or QUEENSIDE) and castles that colour in
+        the direction. If check_valid is True, it checks for the castle being into, out of or across check, or there
+        being pieces in the way of the castle. Performs the same board info updates as make_move afterwards"""
+        if self.check_check(colour) and check_valid:
             raise InvalidMoveError
-        elif self.canCastle[colour][direction] is False:
+        elif self.canCastle[colour][direction] is False and check_valid:
             raise InvalidMoveError
         home_rank = 1 if colour == WHITE else 8
         try:
             target_king = self.get_piece(xy_to_algebraic(5, home_rank))
         except PieceNotFound:
-            raise InvalidMoveError
+            if check_valid:
+                raise InvalidMoveError
+            return
         else:
             if target_king.type != KING or target_king.colour != colour:
-                raise InvalidMoveError
+                if check_valid:
+                    raise InvalidMoveError
         target_rook_file = 8 if direction == KINGSIDE else 1
         direction_multiplier = 1 if direction == KINGSIDE else -1
         try:
             target_rook = self.get_piece(xy_to_algebraic(target_rook_file, home_rank))
         except PieceNotFound:
-            raise InvalidMoveError
-        else:
-            if target_rook.type != ROOK or target_rook.colour != colour:
+            if check_valid:
+                raise InvalidMoveError
+            return
+        if target_rook.type != ROOK or target_rook.colour != colour:
+            if check_valid:
                 raise InvalidMoveError
         for x in range(target_king.x + direction_multiplier, target_rook.x, direction_multiplier):
             if not self.is_empty(xy_to_algebraic(x, home_rank)):
-                raise InvalidMoveError
-        test_board = Board()
-        test_board.load_fen(self.export_fen())
-        try:
-            current_king_pos = target_king.pos
-            for i in range(2):
-                new_king_pos = xy_to_algebraic(algebraic_to_xy(current_king_pos)[0] + direction_multiplier, home_rank)
-                test_board.make_move(current_king_pos, new_king_pos, check_valid=False)
-                if test_board.inCheck == colour:
+                if check_valid:
                     raise InvalidMoveError
-                current_king_pos = new_king_pos
-        except InvalidMoveError:
-            raise InvalidMoveError
+        test_board = copy.deepcopy(self)
+        current_king_pos = target_king.pos
+        for i in range(2):
+            new_king_pos = xy_to_algebraic(algebraic_to_xy(current_king_pos)[0] + direction_multiplier, home_rank)
+            test_board.make_move(current_king_pos, new_king_pos, check_valid=False)
+            if test_board.check_check(colour) and check_valid:
+                raise InvalidMoveError
+            current_king_pos = new_king_pos
         else:
-            self.previousStates.append(self.export_fen())
             if direction == KINGSIDE:
                 target_king.pos = xy_to_algebraic(7, home_rank)
                 target_rook.pos = xy_to_algebraic(6, home_rank)
@@ -381,30 +384,39 @@ class Board:
             self.moveClock += 1
         self.halfMoveClock += 1
         self.activeColour = BLACK if self.activeColour == WHITE else WHITE
-        self.result = self.check_game_outcome()
-        self.currentValidMoves = self.get_all_valid_moves()
+
+    def is_valid_castle(self, colour, direction):
+        test_board = copy.deepcopy(self)
+        try:
+            test_board.castle(colour, direction)
+        except InvalidMoveError:
+            return False
+        else:
+            return True
 
     def check_game_outcome(self):
+        """Decides the outcome of the game based on the pieces. First checks for draw by 50 moves without pawn advance
+        or capture, then checks for checkmate and stalemate. This is a very time-consuming function, use sparingly"""
         if self.result != IN_PROGRESS:
             return self.result
         if self.halfMoveClock >= 100:  # 100 half moves
             return DRAW  # Draw by 50-move rule
-        valid_moves_ignoring_colour = self.get_all_valid_moves(check_colour=False)
-        colours = [WHITE, BLACK]
-        for colour in colours:
-            colour_valid_moves = []
-            for piece in self.activePieces:
-                if piece.colour == colour:
-                    piece_valid_moves = valid_moves_ignoring_colour[piece.pos]
-                    if piece_valid_moves:
-                        colour_valid_moves.append(piece_valid_moves)
-
-            if len(colour_valid_moves) == 0:
-                if self.check_check() is not None:
-                    if colour == WHITE:
-                        return BLACK_WIN
-                    else:
-                        return WHITE_WIN
+        colour_valid_moves = []
+        for piece in self.activePieces:
+            if piece.colour == self.activeColour:
+                piece_pseudo_valid_moves = self.gen_pseudo_valid_moves(piece.pos)
+                piece_valid_moves = []
+                for move in piece_pseudo_valid_moves:
+                    if self.check_valid_move(piece.pos, move, check_colour=False):
+                        piece_valid_moves.append(move)
+                if piece_valid_moves:
+                    colour_valid_moves.append(piece_valid_moves)
+        if len(colour_valid_moves) == 0:
+            if self.check_check(self.activeColour):
+                if self.activeColour == WHITE:
+                    return BLACK_WIN
                 else:
-                    return DRAW
+                    return WHITE_WIN
+            else:
+                return DRAW
         return IN_PROGRESS

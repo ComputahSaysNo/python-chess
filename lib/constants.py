@@ -47,7 +47,6 @@ DRAW = "1/2-1/2"
 IN_PROGRESS = "*"
 
 # GUI constants and colours
-GUI_DIMENSIONS = (1600, 1000)
 GUI_CAPTION = "Chess"
 GUI_FONT_NAME = "lib/font/libel-suit-rg.ttf"
 GUI_BOARD_START_POS = (100, 100)
@@ -78,7 +77,7 @@ PGN_CLOSE_COMMENT = "}"
 PGN_OPEN_VARIATION = "("
 PGN_CLOSE_VARIATION = ")"
 PGN_OPEN_TAG = "["
-PGN_CLOSE_TAG = "["
+PGN_CLOSE_TAG = "]"
 PGN_DEFAULT_EVENT = "Casual Game"
 PGN_EVENT = "Event"
 PGN_SITE = "Site"
@@ -90,6 +89,7 @@ PGN_RESULT = "Result"
 PGN_FEN = "FEN"
 PGN_CASTLE_KINGSIDE = "0-0"
 PGN_CASTLE_QUEENSIDE = "0-0-0"
+PGN_MAX_LINE_LENGTH = 80
 
 # Live location and date generation for new games.
 freegeoip = "http://freegeoip.net/json"

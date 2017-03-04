@@ -385,6 +385,15 @@ class Board:
         self.halfMoveClock += 1
         self.activeColour = BLACK if self.activeColour == WHITE else WHITE
 
+    def is_valid_castle(self, colour, direction):
+        test_board = copy.deepcopy(self)
+        try:
+            test_board.castle(colour, direction)
+        except InvalidMoveError:
+            return False
+        else:
+            return True
+
     def check_game_outcome(self):
         """Decides the outcome of the game based on the pieces. First checks for draw by 50 moves without pawn advance
         or capture, then checks for checkmate and stalemate. This is a very time-consuming function, use sparingly"""

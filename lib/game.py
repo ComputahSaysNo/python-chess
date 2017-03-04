@@ -23,16 +23,19 @@ class Game:
         self.pgnTags[PGN_DATE] = date
         self.pgnTags[PGN_WHITE] = white
         self.pgnTags[PGN_BLACK] = black
+        self.pgnTags[PGN_RESULT] = IN_PROGRESS
         if start_fen != START_BOARD:
             self.pgnTags[PGN_FEN] = start_fen
         self.moves = ""
         self.movesRaw = []
         self.previousBoardStates = [start_fen]
+        self.board = Board()
         self.board.load_fen(start_fen)
 
     def load_pgn(self, location):
         """Loads a game from a PGN file (i.e. tags are updated and board is moved)"""
         self.moves = ""
+        self.movesRaw = []
         self.previousBoardStates = [START_BOARD]
         pgn = open(location, "rt")
         lines = []
@@ -44,6 +47,14 @@ class Game:
                 self.pgnTags[tag] = value
                 continue
             lines.append(line.split())
+        self.board = Board()
+        try:
+            if self.pgnTags[PGN_FEN] != START_BOARD:
+                self.board.load_fen(self.pgnTags[PGN_FEN])
+            else:
+                self.board.load_fen(START_BOARD)
+        except KeyError:
+            self.board.load_fen(START_BOARD)
         moves = []
         comment = False
         for line in lines:
@@ -59,6 +70,7 @@ class Game:
                     if part[-1] == PGN_CLOSE_COMMENT:
                         comment = False
         for move in moves:
+            print(move)
             if move in (WHITE_WIN, BLACK_WIN, DRAW):
                 self.board.result = move
                 self.moves += move
@@ -80,6 +92,36 @@ class Game:
                 check_checkmate = False
             self.moves += lan_to_san(prev_fen, start, end, pawn_promotion=promotion,
                                      check_checkmate=check_checkmate) + " "
+
+    def export_pgn(self, location):
+        output_text = ""
+        for key in self.pgnTags:
+            value = self.pgnTags[key] if self.pgnTags[key] is not None else "-"
+            output_text += PGN_OPEN_TAG + key + ' "' + value + '"' + PGN_CLOSE_TAG + "\n"
+        output_text += "\n"
+        line_length = 0
+        for move_pointer in range(len(self.moves.split())):
+            part = self.moves.split()[move_pointer]
+            if part[0].isdigit() and part[-1] == ".":
+                if line_length + len(part) + len(self.moves.split()[move_pointer + 1]) > PGN_MAX_LINE_LENGTH:
+                    output_text += "\n" + part + " "
+                    line_length = len(part) + 1
+                else:
+                    output_text += part + " "
+                    line_length += len(part) + 1
+            else:
+                if line_length + len(part) > PGN_MAX_LINE_LENGTH:
+                    output_text += "\n" + part + " "
+                    line_length = len(part) + 1
+                else:
+                    output_text += part + " "
+                    line_length += len(part) + 1
+        if self.moves == "" or self.moves.split()[-1] not in (IN_PROGRESS, WHITE_WIN, BLACK_WIN, DRAW):
+            output_text += self.pgnTags[PGN_RESULT]
+        output_file = open(location, "wt")
+        output_file.write(output_text)
+        output_file.close()
+
 
 
 def san_to_lan(fen, san):
@@ -179,7 +221,7 @@ def lan_to_san(fen, start_pos, end_pos, pawn_promotion=None, check_checkmate=Tru
     if check_checkmate:
         outcome = test_board.check_game_outcome()
         checkmate = outcome in (WHITE_WIN, BLACK_WIN)
-    other_colour = WHITE if start_piece.type == BLACK else BLACK
+    other_colour = WHITE if start_piece.colour == BLACK else BLACK
     if not checkmate and test_board.check_check(other_colour):
         check = True
     else:

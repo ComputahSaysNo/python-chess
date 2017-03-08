@@ -70,7 +70,7 @@ class Game:
                     if part[-1] == PGN_CLOSE_COMMENT:
                         comment = False
         for move in moves:
-            if move in (WHITE_WIN, BLACK_WIN, DRAW):
+            if move in (WHITE_WIN, BLACK_WIN, DRAW, IN_PROGRESS):
                 self.board.result = move
                 self.moves += move
                 break

@@ -48,6 +48,7 @@ class ChessGUI:
     """The main class behind the GUI for the chess app. Uses pygame. Has functions for viewing and running a game.
     Most of the graphics are done using the draw method, this must be re-called each time a visual change is made.
     """
+
     def __init__(self):
         os.environ["SDL_VIDEO_CENTERED"] = "1"
         pygame.init()
@@ -167,9 +168,11 @@ class ChessGUI:
             if pressed_buttons is not None:
                 if button[3] in pressed_buttons:
                     colour = GUI_BUTTON_CLICKED_COLOUR
-            pygame.draw.rect(self.screen, colour, [button[1], button[2], button[4] + GUI_SQUARE_SIZE // 10, button[5] + GUI_SQUARE_SIZE // 10])
+            pygame.draw.rect(self.screen, colour, [button[1], button[2], button[4] + GUI_SQUARE_SIZE // 10,
+                                                   button[5] + GUI_SQUARE_SIZE // 10])
             self.screen.blit(button[0], (button[1] + GUI_SQUARE_SIZE // 20, button[2] + GUI_SQUARE_SIZE // 20))
-        textbox = ScrollingTextBox(self.screen, GUI_SQUARE_SIZE * 10, GUI_SQUARE_SIZE * 15, GUI_SQUARE_SIZE, GUI_SQUARE_SIZE * 9)
+        textbox = ScrollingTextBox(self.screen, GUI_SQUARE_SIZE * 10, GUI_SQUARE_SIZE * 15, GUI_SQUARE_SIZE,
+                                   GUI_SQUARE_SIZE * 9)
         move_text = move_text.split(" ")
         for part in move_text:
             if len(part) >= 2:
@@ -200,9 +203,10 @@ class ChessGUI:
         self.text = []
         game_info_text = "In game: " + game.pgnTags[PGN_WHITE] + " vs. " + game.pgnTags[PGN_BLACK]
         info_text_width = self.labelFont.size(game_info_text)[0]
-        self.text.append((game_info_text, [GUI_SQUARE_SIZE * 10 + (GUI_SQUARE_SIZE * 5 - info_text_width) // 2, GUI_SQUARE_SIZE // 2]))
+        self.text.append((game_info_text,
+                          [GUI_SQUARE_SIZE * 10 + (GUI_SQUARE_SIZE * 5 - info_text_width) // 2, GUI_SQUARE_SIZE // 2]))
         whose_turn_text = "White to move" if game.board.activeColour == WHITE else "Black to move"
-        self.text.append([whose_turn_text, [GUI_SQUARE_SIZE * 6, GUI_SQUARE_SIZE * 9.25]])
+        self.text.append([whose_turn_text, [GUI_SQUARE_SIZE * 7, GUI_SQUARE_SIZE * 9.25]])
         self.draw(game.board.export_fen())
         selected_pos = None
         highlight = []
@@ -309,6 +313,13 @@ class ChessGUI:
                             continue
                         else:
                             game.export_pgn(filename)
+                    if self.is_click_on_button("draw_threefold", event.pos) or self.is_click_on_button(
+                            "draw_fifty_move", event.pos):
+                        game.pgnTags[PGN_RESULT] = DRAW
+                        game.board.result = DRAW
+                        game.moves += DRAW
+                        game_running = False
+                        break
                     if screen_pos_to_chess_pos(event.pos) == selected_pos:
                         selected_pos = None
                     else:
@@ -342,11 +353,11 @@ class ChessGUI:
                                     if game.board.get_piece(selected_pos).type == KING:
                                         if (selected_pos == "e1" and screen_pos_to_chess_pos(event.pos) == "g1") or (
                                                         selected_pos == "e8" and screen_pos_to_chess_pos(
-                                                            event.pos) == "g8"):
+                                                    event.pos) == "g8"):
                                             selected_pos = SAN_CASTLE_KINGSIDE
                                         elif (selected_pos == "e1" and screen_pos_to_chess_pos(event.pos) == "c1") or (
                                                         selected_pos == "e8" and screen_pos_to_chess_pos(
-                                                            event.pos) == "c8"):
+                                                    event.pos) == "c8"):
                                             selected_pos = SAN_CASTLE_QUEENSIDE
                                     elif game.board.get_piece(selected_pos).type == PAWN:
                                         if (game.board.activeColour == WHITE and
@@ -375,6 +386,25 @@ class ChessGUI:
                                         self.text[-1][0] = "White to move"
                                     else:
                                         self.text[-1][0] = "Black to move"
+                                    prev_hits = 0
+                                    current_position = game.board.export_fen().split()[0:4]
+                                    for board in game.previousBoardStates:
+                                        if board.split()[0:4] == current_position:
+                                            prev_hits += 1
+                                    if prev_hits >= 3:
+                                        self.new_button(chess_pos_to_screen_pos("c1")[0] + 20,
+                                                        chess_pos_to_screen_pos("c1")[1] + GUI_SQUARE_SIZE + 20,
+                                                        0, 0, text="Claim Draw (threefold repetition)",
+                                                        name="draw_threefold")
+                                    else:
+                                        self.delete_button("draw_threefold")
+                                        if game.board.halfMoveClock >= 100:
+                                            self.new_button(chess_pos_to_screen_pos("c1")[0] + 20,
+                                                            chess_pos_to_screen_pos("c1")[1] + GUI_SQUARE_SIZE + 20,
+                                                            0, 0, text="Claim Draw (50 move rule)",
+                                                            name="draw_fifty_move")
+                                        else:
+                                            self.delete_button("draw_fifty_move")
                                     game.board.result = game.board.check_game_outcome()
                                     if game.board.result != IN_PROGRESS:
                                         game.moves += " " + game.board.result
@@ -411,8 +441,8 @@ class ChessGUI:
             win_message = "Game is a draw"
         self.text[-1][0] = win_message
         self.draw(game.board.export_fen(), move_text=game.moves)
-        self.delete_button("resign")
-        self.delete_button("draw")
+        self.delete_all_buttons()
+        self.add_menu_buttons()
         self.new_button(chess_pos_to_screen_pos("b1")[0] + 40, chess_pos_to_screen_pos("b1")[1] + GUI_SQUARE_SIZE + 20,
                         0, 0, text="Replay game", name="view")
         self.draw(game.board.export_fen(), move_text=game.moves)
@@ -486,7 +516,8 @@ class ChessGUI:
                          game.pgnTags[PGN_DATE] + ")"
         info_text_width = self.labelFont.size(game_info_text)[0]
         self.text = []
-        self.text.append((game_info_text, [GUI_SQUARE_SIZE * 10 + (GUI_SQUARE_SIZE * 5 - info_text_width) // 2, GUI_SQUARE_SIZE // 2]))
+        self.text.append((game_info_text,
+                          [GUI_SQUARE_SIZE * 10 + (GUI_SQUARE_SIZE * 5 - info_text_width) // 2, GUI_SQUARE_SIZE // 2]))
         pygame.key.set_repeat(500, 50)
         self.delete_all_buttons()
         self.add_menu_buttons()
@@ -611,6 +642,9 @@ class ChessGUI:
                                 time.sleep(0.1)
                                 self.draw(game.previousBoardStates[move_counter], highlighted_squares=highlight,
                                           move_text=move_text_up_to_here)
+                                if len(game.moves) > 0:
+                                    if game.moves.split()[-1] == IN_PROGRESS:
+                                        game.moves = " ".join(game.moves.split()[0:-1]) + " "
                                 self.run_game(game)
                             if self.is_click_on_button("save", event.pos):
                                 self.draw(game.board.export_fen(), highlighted_squares=highlight,
@@ -632,6 +666,7 @@ class ChessGUI:
 
 class NewGameInfoGUI:
     """A tkinter dialog that lets the user enter basic info about a new game to be started, to pass on to new_game."""
+
     def __init__(self):
         self.root = Tk()
         self.root.title("Start New Game")
@@ -690,6 +725,7 @@ class NewGameInfoGUI:
 
 class DrawOfferGUI:
     """A simple tkinter GUI enabling the player to accept/decline a draw offer"""
+
     def __init__(self, player_name):
         self.result = None
         self.root = Tk()
@@ -737,6 +773,7 @@ class DrawOfferGUI:
 
 class SelectPromotion:
     """A tkinter GUI that lets the user pick what their pawn will be promoted to"""
+
     def __init__(self):
         self.root = Tk()
         self.root.title("Select pawn promotion")
@@ -789,6 +826,7 @@ class SelectPromotion:
 
 class ScrollingTextBox:
     """A text box, used to display the moves on the side, that scrolls down as more content is added to it."""
+
     def __init__(self, screen, x_min, x_max, y_min, y_max, bg_colour=GUI_MOVE_TEXT_BOX_COLOUR):
         self.screen = screen
         pygame.font.init()

@@ -399,8 +399,8 @@ class Board:
         or capture, then checks for checkmate and stalemate. This is a very time-consuming function, use sparingly"""
         if self.result != IN_PROGRESS:
             return self.result
-        if self.halfMoveClock >= 100:  # 100 half moves
-            return DRAW  # Draw by 50-move rule
+        # if self.halfMoveClock >= 100:  # This method of draw needs to be claimed by the player
+        #     return DRAW
         colour_valid_moves = []
         for piece in self.activePieces:
             if piece.colour == self.activeColour:

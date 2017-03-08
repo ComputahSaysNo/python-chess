@@ -51,7 +51,7 @@ class ChessGUI:
     def __init__(self):
         os.environ["SDL_VIDEO_CENTERED"] = "1"
         pygame.init()
-        self.screen = pygame.display.set_mode([0, 0], pygame.NOFRAME)
+        self.screen = pygame.display.set_mode([GUI_WIDTH, GUI_HEIGHT], pygame.NOFRAME)
         pygame.display.set_caption(GUI_CAPTION)
         self.clock = pygame.time.Clock()
         self.labelFont = pygame.font.Font(GUI_FONT_NAME, GUI_SQUARE_SIZE // 4)
@@ -167,9 +167,9 @@ class ChessGUI:
             if pressed_buttons is not None:
                 if button[3] in pressed_buttons:
                     colour = GUI_BUTTON_CLICKED_COLOUR
-            pygame.draw.rect(self.screen, colour, [button[1], button[2], button[4] + 10, button[5] + 10])
-            self.screen.blit(button[0], (button[1] + 5, button[2] + 5))
-        textbox = ScrollingTextBox(self.screen, 1000, 1500, 100, 900)
+            pygame.draw.rect(self.screen, colour, [button[1], button[2], button[4] + GUI_SQUARE_SIZE // 10, button[5] + GUI_SQUARE_SIZE // 10])
+            self.screen.blit(button[0], (button[1] + GUI_SQUARE_SIZE // 20, button[2] + GUI_SQUARE_SIZE // 20))
+        textbox = ScrollingTextBox(self.screen, GUI_SQUARE_SIZE * 10, GUI_SQUARE_SIZE * 15, GUI_SQUARE_SIZE, GUI_SQUARE_SIZE * 9)
         move_text = move_text.split(" ")
         for part in move_text:
             if len(part) >= 2:
@@ -200,9 +200,9 @@ class ChessGUI:
         self.text = []
         game_info_text = "In game: " + game.pgnTags[PGN_WHITE] + " vs. " + game.pgnTags[PGN_BLACK]
         info_text_width = self.labelFont.size(game_info_text)[0]
-        self.text.append((game_info_text, [1000 + (500 - info_text_width) // 2, 60]))
+        self.text.append((game_info_text, [GUI_SQUARE_SIZE * 10 + (GUI_SQUARE_SIZE * 5 - info_text_width) // 2, GUI_SQUARE_SIZE // 2]))
         whose_turn_text = "White to move" if game.board.activeColour == WHITE else "Black to move"
-        self.text.append([whose_turn_text, [600, 925]])
+        self.text.append([whose_turn_text, [GUI_SQUARE_SIZE * 6, GUI_SQUARE_SIZE * 9.25]])
         self.draw(game.board.export_fen())
         selected_pos = None
         highlight = []
@@ -319,11 +319,7 @@ class ChessGUI:
                                     highlight.append(screen_pos_to_chess_pos(event.pos))
                                 else:
                                     continue
-                                for direction in (KINGSIDE, QUEENSIDE):
-                                    home_rank = 1 if game.board.activeColour == WHITE else 8
-                                    castle_file = 7 if direction == KINGSIDE else 3
-                                    if game.board.is_valid_castle(game.board.activeColour, direction):
-                                        highlight.append(xy_to_algebraic(castle_file, home_rank))
+
                                 try:
                                     piece = game.board.get_piece(screen_pos_to_chess_pos(event.pos))
                                 except PieceNotFound:
@@ -331,6 +327,12 @@ class ChessGUI:
                                 else:
                                     if piece.colour == game.board.activeColour:
                                         selected_pos = screen_pos_to_chess_pos(event.pos)
+                                        if game.board.get_piece(selected_pos).type == KING:
+                                            for direction in (KINGSIDE, QUEENSIDE):
+                                                home_rank = 1 if game.board.activeColour == WHITE else 8
+                                                castle_file = 7 if direction == KINGSIDE else 3
+                                                if game.board.is_valid_castle(game.board.activeColour, direction):
+                                                    highlight.append(xy_to_algebraic(castle_file, home_rank))
                             else:
                                 selected_pos = None
                         else:
@@ -387,6 +389,12 @@ class ChessGUI:
                                     highlight = game.board.get_all_valid_from_pos(screen_pos_to_chess_pos(event.pos))
                                     if highlight:
                                         highlight.append(screen_pos_to_chess_pos(event.pos))
+                                        if game.board.get_piece(screen_pos_to_chess_pos(event.pos)).type == KING:
+                                            for direction in (KINGSIDE, QUEENSIDE):
+                                                home_rank = 1 if game.board.activeColour == WHITE else 8
+                                                castle_file = 7 if direction == KINGSIDE else 3
+                                                if game.board.is_valid_castle(game.board.activeColour, direction):
+                                                    highlight.append(xy_to_algebraic(castle_file, home_rank))
                                     selected_pos = screen_pos_to_chess_pos(event.pos)
                             else:
                                 selected_pos = None
@@ -478,7 +486,7 @@ class ChessGUI:
                          game.pgnTags[PGN_DATE] + ")"
         info_text_width = self.labelFont.size(game_info_text)[0]
         self.text = []
-        self.text.append((game_info_text, [1000 + (500 - info_text_width) // 2, 60]))
+        self.text.append((game_info_text, [GUI_SQUARE_SIZE * 10 + (GUI_SQUARE_SIZE * 5 - info_text_width) // 2, GUI_SQUARE_SIZE // 2]))
         pygame.key.set_repeat(500, 50)
         self.delete_all_buttons()
         self.add_menu_buttons()
